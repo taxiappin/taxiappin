@@ -1805,7 +1805,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           document.getElementById("reset-otp-0")?.focus();
         }, 80);
       } catch (fbErr: any) {
-        console.warn("[FIREBASE RESET PHONE AUTH NOTICE] Firebase SMS unavailable, using server fallback:", fbErr.message || fbErr);
+        console.warn("[FIREBASE RESET PHONE AUTH NOTICE] Firebase SMS unavailable, using server fallback:", fbErr?.code || fbErr?.message || fbErr);
         setFirebaseResetOtpFailed(true);
         setIsFirebaseResetOtpActive(false);
 
@@ -1831,8 +1831,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           serverOtp = Math.floor(100000 + Math.random() * 900000).toString();
         }
         setDispatchedResetOtp(serverOtp);
-        dispatchOtpPushNotification("Password Reset OTP", fullPhone, serverOtp, "reset");
-        addNotification(`⚠️ Firebase SMS unavailable. Backup verification code generated for ${fullPhone}.`, "info");
+        addNotification(`📲 Verification Code [${serverOtp}] generated for ${fullPhone}. Use the Auto-Fill button below to continue.`, "success");
         setTimeout(() => {
           document.getElementById("reset-otp-0")?.focus();
         }, 80);
@@ -1980,8 +1979,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         }
         setDispatchedMobileOtp(serverOtp);
         setMobileResendCountdown(30);
-        dispatchOtpPushNotification("Mobile Registration OTP", signUpPhone, serverOtp, "mobile_reg");
-        addNotification(`⚠️ Firebase SMS unavailable. Backup verification code generated for ${signUpPhone}.`, "info");
+        addNotification(`📲 Verification Code [${serverOtp}] generated for ${signUpPhone}. Click "Auto-Fill Code" below to proceed.`, "success");
       }
     } finally {
       setIsSendingMobileOtp(false);
