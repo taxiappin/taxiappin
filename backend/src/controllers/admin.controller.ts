@@ -387,14 +387,14 @@ export function getAdminStats(req: Request, res: Response) {
   const onlineRiderCount = Object.values(globalRiders).length;
   
   const revenue = globalTrips
-    .filter(t => t.status === 'Completed')
+    .filter(t => t.status === 'Completed' || t.status === 'completed')
     .reduce((acc, t) => acc + (Number(t.fare) || Number(t.amount) || 0), 0);
 
   return res.json([
-    { label: 'Total Rides', value: totalRides.toLocaleString(), trend: 'Live', color: 'text-primary', icon: 'Navigation' },
-    { label: 'Online Drivers', value: activeDrivers.toLocaleString(), trend: 'Active', color: 'text-blue-500', icon: 'Car' },
-    { label: 'Total Riders', value: onlineRiderCount.toLocaleString(), trend: 'Sync', color: 'text-purple-500', icon: 'Users' },
-    { label: 'Revenue', value: `₹${revenue.toLocaleString()}`, trend: 'Gross', color: 'text-green-500', icon: 'IndianRupee' },
+    { title: 'Total Fares', label: 'Total Rides', value: totalRides.toLocaleString(), trend: 'Live', color: 'text-primary', icon: 'Navigation' },
+    { title: 'Online Drivers', label: 'Online Drivers', value: activeDrivers.toLocaleString(), trend: 'Active', color: 'text-blue-500', icon: 'Car' },
+    { title: 'Total Riders', label: 'Total Riders', value: onlineRiderCount.toLocaleString(), trend: 'Sync', color: 'text-purple-500', icon: 'Users' },
+    { title: 'Revenue', label: 'Revenue', value: `₹${revenue.toLocaleString()}`, trend: 'Gross', color: 'text-green-500', icon: 'IndianRupee' },
   ]);
 }
 
@@ -1110,13 +1110,22 @@ export function getAdminAnalytics(req: Request, res: Response) {
 
   // 5. Aggregate active operations metrics
   const activeTripsCount = globalTrips.filter(t => t.status === "Active" || t.status === "In Progress" || t.status === "started").length;
-  const completedTripsCount = globalTrips.filter(t => t.status === "Completed" || t.status === "completed").length;
+  const completedTrips = globalTrips.filter(t => t.status === "Completed" || t.status === "completed");
+  const completedTripsCount = completedTrips.length;
   const ridersCount = Object.keys(globalRiders).length;
   const driversCount = Object.keys(globalDrivers).length;
+
+  const grossVolume = globalTrips.reduce((sum, t) => sum + (Number(t.fare) || Number(t.amount) || 0), 0);
+  const platformCommission = Math.round(grossVolume * 0.20);
+  const avgTicketSize = completedTripsCount > 0 ? Math.round(grossVolume / completedTripsCount) : (globalTrips.length > 0 ? Math.round(grossVolume / globalTrips.length) : 0);
 
   return res.json({
     totalSearches: searches.length,
     searches,
+    grossVolume,
+    platformCommission,
+    avgTicketSize,
+    totalRevenue: grossVolume,
     ageDistribution: Object.entries(ageCounts).map(([name, value]) => ({ name, value })),
     topRoutes,
     deviceDistribution: Object.entries(deviceCounts).map(([name, value]) => ({ name, value })),
@@ -1125,7 +1134,10 @@ export function getAdminAnalytics(req: Request, res: Response) {
       activeTripsCount,
       completedTripsCount,
       ridersCount,
-      driversCount
+      driversCount,
+      grossVolume,
+      platformCommission,
+      avgTicketSize
     }
   });
 }

@@ -124,17 +124,22 @@ router.get("/mail/otps", getActiveMailOtps);
 // Riders Management
 router.get("/riders", getRiders);
 router.post("/riders", createRider);
+router.put("/riders/:id", updateRider);
 router.patch("/riders/:id", updateRider);
 router.delete("/riders/:id", deleteRider);
 
 // Drivers Management
 router.get("/drivers", getDrivers);
 router.post("/drivers", createDriver);
+router.put("/drivers/:id", updateDriver);
 router.patch("/drivers/:id", updateDriver);
+router.put("/drivers/:id/kyc", updateDriver);
+router.patch("/drivers/:id/kyc", updateDriver);
 router.delete("/drivers/:id", deleteDriver);
 
 // Trip Management
 router.get("/trips", getAdminTrips);
+router.put("/trips/:id", updateAdminTrip);
 router.patch("/trips/:id", updateAdminTrip);
 router.delete("/trips/:id", deleteAdminTrip);
 
@@ -151,10 +156,12 @@ router.get("/marketplace/requests", getMarketplaceRequests);
 // Support Management Endpoints
 router.get("/support/tickets", getSupportTickets);
 router.post("/support/tickets", createSupportTicket);
+router.put("/support/tickets/:id", updateSupportTicket);
 router.patch("/support/tickets/:id", updateSupportTicket);
 router.delete("/support/tickets/:id", deleteSupportTicket);
 router.get("/tickets", getSupportTickets);
 router.post("/tickets", createSupportTicket);
+router.put("/tickets/:id", updateSupportTicket);
 router.patch("/tickets/:id", updateSupportTicket);
 router.delete("/tickets/:id", deleteSupportTicket);
 router.get("/support/chat/:driverId", getSupportChatMessages);
@@ -163,6 +170,7 @@ router.post("/support/chat", sendSupportChatMessage);
 // Subscribers & Email Marketing Endpoints
 router.get("/subscribers", getSubscribers);
 router.post("/subscribers", addSubscriber);
+router.put("/subscribers/:id", updateSubscriber);
 router.patch("/subscribers/:id", updateSubscriber);
 router.delete("/subscribers/:id", deleteSubscriber);
 router.post("/subscribers/broadcast", sendPromotionalBroadcast);
@@ -170,18 +178,21 @@ router.post("/subscribers/broadcast", sendPromotionalBroadcast);
 // Blogs Endpoints
 router.get("/blogs", getBlogs);
 router.post("/blogs", createBlog);
+router.put("/blogs/:id", updateBlog);
 router.patch("/blogs/:id", updateBlog);
 router.delete("/blogs/:id", deleteBlog);
 
 // FAQs Endpoints
 router.get("/faqs", getFaqs);
 router.post("/faqs", createFaq);
+router.put("/faqs/:id", updateFaq);
 router.patch("/faqs/:id", updateFaq);
 router.delete("/faqs/:id", deleteFaq);
 
 // Commuter Reviews Endpoints
 router.get("/reviews", getReviews);
 router.post("/reviews", createReview);
+router.put("/reviews/:id", updateReview);
 router.patch("/reviews/:id", updateReview);
 router.delete("/reviews/:id", deleteReview);
 
