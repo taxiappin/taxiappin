@@ -1,0 +1,20 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="256" height="256" rx="48" fill="#EFF6FF"/>
+  <!-- Background circle decoration -->
+  <circle cx="128" cy="128" r="80" fill="#DBEAFE"/>
+  <!-- Shoulders / Body -->
+  <path d="M68 200C68 165 95 150 128 150C161 150 188 165 188 200V208H68V200Z" fill="#1E40AF"/>
+  <!-- Collar -->
+  <path d="M112 150L128 168L144 150" stroke="#FEF08A" stroke-width="6" stroke-linecap="round"/>
+  <!-- Head / Face -->
+  <circle cx="128" cy="110" r="36" fill="#FED7AA"/>
+  <!-- Eyes -->
+  <circle cx="114" cy="106" r="4" fill="#1E293B"/>
+  <circle cx="142" cy="106" r="4" fill="#1E293B"/>
+  <!-- Smile -->
+  <path d="M118 124C118 130 138 130 138 124" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/>
+  <!-- Cap / Hat (Driver theme) -->
+  <path d="M92 90C92 72 108 64 128 64C148 64 164 72 164 90H92Z" fill="#1E293B"/>
+  <path d="M84 90H172" stroke="#1E293B" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="128" cy="62" r="5" fill="#FAB818"/>
+</svg>

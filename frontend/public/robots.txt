@@ -1,0 +1,15 @@
+# TaxiApp Automated Search Engine Crawling Directive
+User-agent: *
+Allow: /
+Allow: /book
+Allow: /driver
+Allow: /blogs
+Allow: /faqs
+Allow: /safety
+
+Disallow: /admin
+Disallow: /api/
+Disallow: /uploads/private/
+
+# XML Sitemap Location
+Sitemap: https://ais-dev-krtm3i6kzfw4zaaaf5sqea-386217356005.asia-southeast1.run.app/sitemap.xml

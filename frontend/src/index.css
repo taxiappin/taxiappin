@@ -1,0 +1,859 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Anek+Bangla:wght@400;500;600;700;800&family=Anek+Devanagari:wght@400;500;600;700;800&family=Anek+Gujarati:wght@400;500;600;700;800&family=Anek+Gurmukhi:wght@400;500;600;700;800&family=Anek+Kannada:wght@400;500;600;700;800&family=Anek+Latin:wght@400;500;600;700;800&family=Anek+Malayalam:wght@400;500;600;700;800&family=Anek+Odia:wght@400;500;600;700;800&family=Anek+Tamil:wght@400;500;600;700;800&family=Anek+Telugu:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "leaflet/dist/leaflet.css";
+@import "tailwindcss";
+
+/* Ensure Tailwind dark: variant ONLY applies when .dark class is explicitly present, NEVER from OS prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Style Guide & Reference Palette */
+  --color-ink: #12141A;
+  --color-bg-page: #FAF7F2;
+  --color-surface: #FFFFFF;
+  --color-border-hairline: #E2E8F0;
+  --color-taxi-amber: #F2B33D;
+  --color-positive: #3D8B6B;
+  --color-negative: #C0453A;
+
+  /* Reference Accent Colors */
+  --color-peach-coral: #F06543;
+  --color-mint-teal: #2DD4BF;
+  --color-sun-yellow: #F59E0B;
+  --color-soft-indigo: #818CF8;
+
+  /* Standard mappings */
+  --color-primary: #F2B33D;
+  --color-primary-dark: #d99c2d;
+  --color-secondary: #12141A;
+  --color-surface-card: #FFFFFF;
+  --color-surface-soft: #FFFFFF;
+  --color-canvas: #FAF7F2;
+  --color-ink-soft: #12141A;
+  --color-body: #12141A;
+  --color-mute: #6B6F76;
+  --color-ash: #8A8D93;
+  --color-hairline: #E8E6E0;
+  --color-hairline-soft: #E8E6E0;
+  
+  /* Radii - Super smooth 24px-28px corners matching attached reference UI */
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  
+  /* Typography fonts */
+  --font-sans: "Poppins", "Plus Jakarta Sans", "Anek Latin", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Poppins", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@keyframes path-draw {
+  from {
+    stroke-dashoffset: 2000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-path {
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  animation: path-draw 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  50% { transform: translateX(8px); }
+  75% { transform: translateX(-8px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes subtle-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-subtle-ping {
+  animation: subtle-ping 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+:root, html, body {
+  color-scheme: light !important;
+  supported-color-schemes: light !important;
+}
+
+/* Force light mode regardless of OS/iOS dark mode settings */
+@media (prefers-color-scheme: dark) {
+  :root, html, body, #root, #admin-root-container {
+    color-scheme: light !important;
+    supported-color-schemes: light !important;
+    background-color: #FAF7F2 !important;
+    color: #12141A !important;
+  }
+
+  * {
+    color-scheme: light !important;
+  }
+
+  input, select, textarea, option {
+    color-scheme: light !important;
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+  }
+
+  #admin-root-container input,
+  #admin-root-container select,
+  #admin-root-container textarea {
+    color: #0F172A !important;
+  }
+}
+
+@layer base {
+  html, body {
+    color-scheme: light !important;
+    background-color: #FAF7F2 !important;
+    color: #12141A !important;
+    font-family: "Poppins", "Plus Jakarta Sans", "Anek Latin", "Inter", ui-sans-serif, system-ui, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  
+  #admin-root-container,
+  .backend-admin-root,
+  #admin-root-container *,
+  .backend-admin-root * {
+    font-family: "Poppins", "Plus Jakarta Sans", "Anek Latin", sans-serif;
+  }
+  
+  /* Ensure form controls and tabs remain pure white and crisp */
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+    color-scheme: light !important;
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border-radius: 0.75rem;
+    -webkit-appearance: none;
+  }
+
+  input[type="checkbox"], input[type="radio"] {
+    color-scheme: light !important;
+    accent-color: #F59E0B !important;
+  }
+
+  input[type="date"], input[type="time"] {
+    color-scheme: light !important;
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+  }
+  
+  input::placeholder, textarea::placeholder {
+    color: #94A3B8 !important;
+    opacity: 1 !important;
+  }
+
+  /* Prevent icons from shrinking */
+  svg, .lucide {
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
+  }
+
+  button svg, a svg, [role="button"] svg {
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
+  }
+}
+
+/* Systemic Backend Admin Consistency Enhancements across all 49 pages */
+.backend-admin-root {
+  background-color: #FAF7F2;
+  color: #12141A;
+  font-family: "Poppins", "Plus Jakarta Sans", "Anek Latin", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Standardized Table Styling across all 49 Backend Views */
+.backend-admin-root table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.backend-admin-root thead th {
+  background-color: #F8FAFC;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #E2E8F0;
+  white-space: nowrap;
+}
+
+.backend-admin-root tbody td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  color: #1E293B;
+  font-size: 0.875rem;
+  vertical-align: middle;
+}
+
+.backend-admin-root tbody tr:hover {
+  background-color: #F8FAFC;
+  transition: background-color 0.15s ease;
+}
+
+/* Numeric & Monospace columns */
+.backend-admin-root .font-mono,
+.backend-admin-root [data-mono="true"] {
+  font-family: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Standard Badges & Chips: Always single-line, never wrap */
+.backend-admin-root .badge,
+.backend-admin-root [class*="rounded-full"] {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Clean customized backend scrollbar */
+.backend-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.backend-scrollbar::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 9999px;
+}
+.backend-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+.backend-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.smooth-transition {
+  transition: all 0.4s var(--ease-out-expo);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Grayscale styling only if explicitly enabled via .grayscale-map */
+.grayscale-map .leaflet-tile,
+.grayscale-map img.leaflet-tile,
+.grayscale-map .leaflet-tile-pane img,
+.grayscale-map .leaflet-tile-container img {
+  filter: grayscale(100%) contrast(92%) brightness(104%) !important;
+  -webkit-filter: grayscale(100%) contrast(92%) brightness(104%) !important;
+}
+
+/* Ensure non-tile overlays (markers, popups, route polylines, vehicle icons) are unaffected */
+.leaflet-objects-pane,
+.leaflet-marker-pane,
+.leaflet-overlay-pane,
+.leaflet-popup-pane,
+.leaflet-tooltip-pane {
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+
+.grayscale-map .leaflet-container,
+.leaflet-container {
+  background: #f4f4f6;
+}
+
+.custom-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.custom-vehicle-marker {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.custom-tooltip::before {
+  display: none !important;
+}
+
+.location-detected-popup .leaflet-popup-content-wrapper {
+  background: var(--color-surface, #ffffff) !important;
+  color: var(--color-ink, #12141a) !important;
+  border-radius: 1.5rem !important;
+  border: 1px solid var(--color-border-hairline, #e2e8f0) !important;
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.1) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.location-detected-popup .leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+  font-family: inherit !important;
+}
+
+.location-detected-popup .leaflet-popup-tip {
+  background: var(--color-surface, #ffffff) !important;
+  box-shadow: -1px -1px 0px 0px var(--color-border-hairline, #e2e8f0) !important;
+}
+
+.location-detected-popup .leaflet-popup-close-button {
+  display: none !important;
+}
+
+@keyframes vibrate {
+  0% { transform: translate(0); }
+  25% { transform: translate(-0.5px, 0.5px); }
+  50% { transform: translate(-0.5px, -0.5px); }
+  75% { transform: translate(0.5px, 0.5px); }
+  100% { transform: translate(0.5px, -0.5px); }
+}
+
+@keyframes route-dash-flow {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+.route-pulse-dash {
+  animation: route-dash-flow 1.5s linear infinite;
+}
+
+.animate-vibrate {
+  animation: vibrate 0.15s infinite linear;
+}
+
+.uber-vehicle-marker {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  will-change: transform;
+}
+
+.uber-vehicle-body {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* ==========================================================================
+   REFERENCE UI DESIGN STYLING & CORE AESTHETIC OVERRIDES
+   Matching Attached Design: Ultra-smooth rounded floating cards, warm cream canvas,
+   peach/amber/teal accent badges, pill tab switchers, bold typography.
+   ========================================================================== */
+
+/* Main Admin Root Canvas */
+#admin-root-container {
+  background-color: #FAF7F2 !important;
+}
+
+/* Floating White Cards with Ambient Dropshadow */
+.shadow-premium-card,
+.backend-card-premium {
+  border-radius: 1rem !important;
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.05), 0 2px 6px 0 rgba(0, 0, 0, 0.02) !important;
+  border: 1px solid rgba(226, 232, 240, 0.7) !important;
+}
+
+/* Enable elegant rounded table layouts */
+#admin-root-container table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  width: 100%;
+}
+
+#admin-root-container table th {
+  border-bottom: 1px solid #F1F5F9 !important;
+  color: #64748B !important;
+  font-size: 11.5px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  font-weight: 600 !important;
+  background-color: #FAF7F2 !important;
+  padding: 14px 18px !important;
+}
+
+#admin-root-container table th:first-child {
+  border-top-left-radius: 1.25rem !important;
+}
+#admin-root-container table th:last-child {
+  border-top-right-radius: 1.25rem !important;
+}
+
+#admin-root-container table td {
+  border-bottom: 1px solid #F8FAFC !important;
+  font-size: 13.5px !important;
+  color: #334155 !important;
+  padding: 14px 18px !important;
+  vertical-align: middle !important;
+}
+
+#admin-root-container table tr:hover td {
+  background-color: #FAF7F2/60 !important;
+}
+
+/* General select and options style overrides */
+option {
+  color: #0F172A !important;
+  background-color: #FFFFFF !important;
+}
+
+select {
+  color: #334155 !important;
+  background-color: #FFFFFF !important;
+  border-radius: 1.25rem !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+/* Maintain active pulse dot color in matching state */
+#admin-root-container .animate-ping {
+  animation: subtle-ping 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+/* Custom Pill Tab Style Enforcement */
+#admin-root-container .pill-tab-container {
+  background-color: #F4EFEA !important;
+  padding: 6px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+/* Smooth custom scrollbars for sidebar navigation and grid contents */
+#admin-root-container *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+#admin-root-container *::-webkit-scrollbar-track {
+  background: transparent;
+}
+#admin-root-container *::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 9999px;
+}
+#admin-root-container *::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
+}
+
+/* Screen Display Size Scaling Modes */
+html, html[data-display-scale="large"] {
+  font-size: 16px !important;
+}
+
+html[data-display-scale="medium"] {
+  font-size: 14.25px !important;
+}
+
+html[data-display-scale="small"] {
+  font-size: 12.5px !important;
+}
+
+.app-responsive-frame {
+  width: 100%;
+  max-width: 448px;
+  margin: 0 auto;
+  transition: max-width 0.2s ease-in-out;
+}
+
+html[data-display-scale="medium"] .app-responsive-frame {
+  max-width: 405px;
+}
+
+html[data-display-scale="small"] .app-responsive-frame {
+  max-width: 355px;
+}
+
+.fluid-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ==========================================================================
+   GLOBAL BACKEND DESIGN SYSTEM & TYPOGRAPHY HARMONIZATION
+   Applies uniform typography, soft color palettes, consistent card radii,
+   standardized tables, buttons, inputs, and status badges across ALL 49+
+   current and future backend admin pages.
+   ========================================================================== */
+
+#admin-root-container,
+.backend-admin-root,
+.backend-admin-page {
+  font-family: "Poppins", "Plus Jakarta Sans", "Anek Latin", "Inter", ui-sans-serif, system-ui, sans-serif !important;
+  color: #1E293B !important;
+  background-color: #FAF7F2 !important;
+}
+
+/* Global font weight normalization - ensure clean, comfortable regular & medium hierarchy without harsh 800/900 black bolding */
+.font-black {
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.font-extrabold {
+  font-weight: 600 !important;
+}
+
+.font-bold {
+  font-weight: 600 !important;
+}
+
+.font-semibold {
+  font-weight: 600 !important;
+}
+
+.font-medium {
+  font-weight: 500 !important;
+}
+
+.font-normal {
+  font-weight: 400 !important;
+}
+
+b, strong {
+  font-weight: 600 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600 !important;
+}
+
+#admin-root-container .font-black,
+#admin-root-container .font-extrabold,
+.backend-admin-root .font-black,
+.backend-admin-root .font-extrabold {
+  font-weight: 600 !important;
+  letter-spacing: -0.015em !important;
+}
+
+#admin-root-container .font-bold,
+#admin-root-container .font-semibold,
+.backend-admin-root .font-bold,
+.backend-admin-root .font-semibold {
+  font-weight: 600 !important;
+}
+
+/* Typography Scale & Line-Heights */
+#admin-root-container [class*="text-[8px]"],
+#admin-root-container [class*="text-[8.5px]"],
+#admin-root-container [class*="text-[9px]"],
+#admin-root-container [class*="text-[9.5px]"] {
+  font-size: 11.5px !important;
+  line-height: 1.35 !important;
+}
+
+#admin-root-container [class*="text-[10px]"],
+#admin-root-container [class*="text-[10.5px]"] {
+  font-size: 12.5px !important;
+  line-height: 1.4 !important;
+}
+
+#admin-root-container [class*="text-[11px]"],
+#admin-root-container [class*="text-[11.5px]"] {
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+#admin-root-container .text-xs {
+  font-size: 0.8125rem !important; /* 13px */
+  line-height: 1.25rem !important;
+}
+
+#admin-root-container .text-sm {
+  font-size: 0.9375rem !important; /* 15px */
+  line-height: 1.4rem !important;
+}
+
+#admin-root-container .text-base {
+  font-size: 1.0625rem !important; /* 17px */
+  line-height: 1.5rem !important;
+}
+
+/* Headings Unification across all backend pages */
+#admin-root-container h1,
+.backend-admin-root h1 {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #0F172A !important;
+  font-family: "Poppins", "Plus Jakarta Sans", sans-serif !important;
+  margin-bottom: 0.25rem !important;
+}
+
+#admin-root-container h2,
+.backend-admin-root h2 {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+  color: #0F172A !important;
+  font-family: "Poppins", "Plus Jakarta Sans", sans-serif !important;
+  margin-bottom: 0.25rem !important;
+}
+
+#admin-root-container h3,
+.backend-admin-root h3 {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  color: #0F172A !important;
+  font-family: "Poppins", "Plus Jakarta Sans", sans-serif !important;
+}
+
+#admin-root-container h4,
+#admin-root-container h5,
+#admin-root-container h6,
+.backend-admin-root h4,
+.backend-admin-root h5,
+.backend-admin-root h6 {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  color: #1E293B !important;
+  font-family: "Poppins", "Plus Jakarta Sans", sans-serif !important;
+}
+
+/* Color Palette Normalization (Replacing harsh pure blacks & harsh red contrasts) */
+#admin-root-container .text-black,
+#admin-root-container .text-slate-950,
+#admin-root-container .text-slate-900,
+#admin-root-container .text-slate-800,
+#admin-root-container .text-gray-900,
+.backend-admin-root .text-black,
+.backend-admin-root .text-slate-900 {
+  color: #1E293B !important;
+}
+
+/* Soft Red/Rose Alert Colors instead of harsh solid red text */
+#admin-root-container .text-red-600,
+#admin-root-container .text-red-700,
+#admin-root-container .text-red-800,
+.backend-admin-root .text-red-600 {
+  color: #B91C1C !important;
+}
+
+/* Label styling */
+#admin-root-container label,
+.backend-admin-root label {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #475569 !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Form inputs, selects & textareas harmonization (excluding checkboxes & radios) */
+#admin-root-container input:not([type="checkbox"]):not([type="radio"]),
+#admin-root-container select,
+#admin-root-container textarea,
+.backend-admin-root input:not([type="checkbox"]):not([type="radio"]),
+.backend-admin-root select,
+.backend-admin-root textarea {
+  font-size: 13.5px !important;
+  color: #0F172A !important;
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+#admin-root-container input:not([type="checkbox"]):not([type="radio"]):focus,
+#admin-root-container select:focus,
+#admin-root-container textarea:focus,
+.backend-admin-root input:not([type="checkbox"]):not([type="radio"]):focus,
+.backend-admin-root select:focus,
+.backend-admin-root textarea:focus {
+  border-color: #F2B33D !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(242, 179, 61, 0.2) !important;
+}
+
+/* Style Guide Checkboxes Harmonization - Crisp, accessible 18px square checkboxes */
+#admin-root-container input[type="checkbox"],
+.backend-admin-root input[type="checkbox"] {
+  width: 1.125rem !important; /* 18px */
+  height: 1.125rem !important; /* 18px */
+  min-width: 1.125rem !important;
+  min-height: 1.125rem !important;
+  border-radius: 0.25rem !important; /* 4px crisp box */
+  border: 2px solid #94A3B8 !important;
+  background-color: #FFFFFF !important;
+  accent-color: #F59E0B !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  -webkit-appearance: checkbox !important;
+  appearance: checkbox !important;
+  box-shadow: none !important;
+}
+
+#admin-root-container input[type="checkbox"]:checked,
+.backend-admin-root input[type="checkbox"]:checked {
+  background-color: #F59E0B !important;
+  border-color: #D97706 !important;
+}
+
+/* Buttons Harmonization */
+#admin-root-container button,
+.backend-admin-root button {
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  border-radius: 0.5rem !important;
+  letter-spacing: -0.01em !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Card & Panel Styling Consistency - Pure background without forced roundness */
+#admin-root-container .bg-white,
+.backend-admin-root .bg-white {
+  background-color: #FFFFFF !important;
+}
+
+/* Table Harmonization across ALL admin pages */
+#admin-root-container table,
+.backend-admin-root table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  width: 100% !important;
+}
+
+#admin-root-container table th,
+.backend-admin-root table th {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #475569 !important;
+  background-color: #FAF7F2 !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  padding: 12px 16px !important;
+}
+
+#admin-root-container table td,
+.backend-admin-root table td {
+  font-size: 13.5px !important;
+  color: #334155 !important;
+  border-bottom: 1px solid #F1F5F9 !important;
+  padding: 14px 16px !important;
+  vertical-align: middle !important;
+}
+
+#admin-root-container table tr:hover td,
+.backend-admin-root table tr:hover td {
+  background-color: rgba(250, 247, 242, 0.6) !important;
+}
+
+/* Status Badges Harmonization */
+#admin-root-container .badge-red,
+#admin-root-container .bg-red-50,
+#admin-root-container .bg-red-100 {
+  background-color: #FEF2F2 !important;
+  color: #991B1B !important;
+  border: 1px solid #FCA5A5 !important;
+  border-radius: 9999px !important;
+  font-weight: 600 !important;
+}
+
+#admin-root-container .badge-green,
+#admin-root-container .bg-emerald-50,
+#admin-root-container .bg-green-100 {
+  background-color: #ECFDF5 !important;
+  color: #065F46 !important;
+  border: 1px solid #A7F3D0 !important;
+  border-radius: 9999px !important;
+  font-weight: 600 !important;
+}
+
+#admin-root-container .badge-amber,
+#admin-root-container .bg-amber-50,
+#admin-root-container .bg-yellow-100 {
+  background-color: #FFFBEB !important;
+  color: #92400E !important;
+  border: 1px solid #FDE68A !important;
+  border-radius: 9999px !important;
+  font-weight: 600 !important;
+}
+
+/* UNIFIED DESIGN SYSTEM TAB CONTAINER & PILL STYLES */
+.tab-container-pill,
+.backend-tab-container {
+  display: inline-flex !important;
+  align-items: center !important;
+  background-color: rgba(226, 232, 240, 0.6) !important;
+  border: 1px solid rgba(203, 213, 225, 0.8) !important;
+  padding: 4px !important;
+  border-radius: 1rem !important;
+  gap: 4px !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+.tab-btn-active {
+  background-color: #F2B33D !important;
+  color: #0F172A !important;
+  font-weight: 600 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.tab-btn-inactive {
+  background-color: transparent !important;
+  color: #334155 !important;
+  font-weight: 500 !important;
+  border-radius: 0.75rem !important;
+}
+
+.tab-btn-inactive:hover {
+  color: #0F172A !important;
+  background-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Minimalist Uber-style Map Tiles (100% Free, Zero Watermark, No API Key Required) */
+.map-tiles-uber-minimal,
+.map-tiles-uber-minimal .leaflet-tile,
+.leaflet-tile.map-tiles-uber-minimal,
+.leaflet-tile-pane .map-tiles-uber-minimal img,
+.map-tiles-uber-minimal img.leaflet-tile {
+  filter: grayscale(100%) contrast(92%) brightness(106%) !important;
+}
+
+.map-tiles-uber-dark,
+.map-tiles-uber-dark .leaflet-tile,
+.leaflet-tile.map-tiles-uber-dark,
+.leaflet-tile-pane .map-tiles-uber-dark img,
+.map-tiles-uber-dark img.leaflet-tile {
+  filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%) !important;
+}
+
+
+

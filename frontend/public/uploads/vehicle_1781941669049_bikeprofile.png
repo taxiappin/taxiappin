@@ -1,0 +1,18 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="256" height="256" rx="48" fill="#F8FAFC"/>
+  <!-- Wheels -->
+  <circle cx="70" cy="160" r="35" stroke="#1E293B" stroke-width="12" fill="#E2E8F0"/>
+  <circle cx="70" cy="160" r="12" fill="#475569"/>
+  <circle cx="186" cy="160" r="35" stroke="#1E293B" stroke-width="12" fill="#E2E8F0"/>
+  <circle cx="186" cy="160" r="12" fill="#475569"/>
+  <!-- Bike Frame -->
+  <path d="M70 160L115 105H170L186 160" stroke="#E11D48" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M115 105L135 160" stroke="#E11D48" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Seat -->
+  <path d="M120 90H145" stroke="#1E293B" stroke-width="12" stroke-linecap="round"/>
+  <!-- Handlebars -->
+  <path d="M170 105L178 75H160" stroke="#1E293B" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Text / Badge -->
+  <rect x="83" y="200" width="90" height="24" rx="12" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="128" y="216" font-family="system-ui, sans-serif" font-weight="900" font-size="12" fill="#475569" text-anchor="middle">BIKE</text>
+</svg>

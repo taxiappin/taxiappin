@@ -1,0 +1,11 @@
+{
+  "name": "Taxiapp v90",
+  "description": "Smart ride marketplace for local and intercity travel with automated route detection and seamless booking.",
+  "requestFramePermissions": [
+    "geolocation",
+    "notifications"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

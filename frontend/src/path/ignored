@@ -1,0 +1,683 @@
+import React, { useState, useEffect } from "react";
+import { 
+  Mail, 
+  Settings, 
+  Server, 
+  Shield, 
+  CheckCircle, 
+  AlertCircle, 
+  RefreshCw, 
+  Send, 
+  Key, 
+  Loader2, 
+  Eye, 
+  EyeOff, 
+  HelpCircle,
+  Database,
+  Terminal,
+  Check,
+  Smartphone,
+  Cpu,
+  Lock
+} from "lucide-react";
+
+interface MailSettingsViewProps {
+  config: any;
+  updateConfig: (updater: (prev: any) => any) => void;
+  setToast: (toast: { message: string; type: "success" | "error" }) => void;
+}
+
+export const MailSettingsView: React.FC<MailSettingsViewProps> = ({ config, updateConfig, setToast }) => {
+  const mailSettings = config.mailSettings || {
+    mailProvider: "smtp",
+    smtpHost: "smtp.gmail.com",
+    smtpPort: 587,
+    smtpSecure: false,
+    smtpUser: "",
+    smtpPass: "",
+    smtpFrom: "no-reply@taxiapp.com",
+    smtpSenderName: "TaxiApp Support",
+    firebaseEnabled: true,
+    smtpEnabled: true
+  };
+
+  // Module level tabs: 'smtp' | 'firebase' | 'none'
+  const [activeModuleTab, setActiveModuleTab] = useState<'smtp' | 'firebase' | 'none'>(
+    mailSettings.mailProvider || "smtp"
+  );
+
+  // Sub-tabs for each module: 'credentials' | 'livetest'
+  const [subTab, setSubTab] = useState<'credentials' | 'livetest'>('credentials');
+
+  const [testRecipient, setTestRecipient] = useState("");
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean | null;
+    message: string;
+    log?: string;
+  }>({ success: null, message: "" });
+
+  const [otps, setOtps] = useState<any[]>([]);
+  const [isRefreshingOtps, setIsRefreshingOtps] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Fetch active OTP list from backend memory
+  const fetchActiveOtps = async (silent = false) => {
+    if (!silent) setIsRefreshingOtps(true);
+    try {
+      const response = await fetch("/api/admin/mail/otps");
+      if (response.ok) {
+        const data = await response.json();
+        setOtps(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch OTPs:", e);
+    } finally {
+      if (!silent) setIsRefreshingOtps(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchActiveOtps();
+    const interval = setInterval(() => fetchActiveOtps(true), 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateField = (key: string, value: any) => {
+    updateConfig((prev: any) => ({
+      ...prev,
+      mailSettings: {
+        ...(prev.mailSettings || {}),
+        [key]: value
+      }
+    }));
+  };
+
+  const handleSelectModule = (module: 'smtp' | 'firebase' | 'none') => {
+    setActiveModuleTab(module);
+    updateField("mailProvider", module);
+    setToast({
+      message: `Active Mail Gateway switched to ${module.toUpperCase()}`,
+      type: "success"
+    });
+  };
+
+  const handleTestSmtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mailSettings.smtpHost || !mailSettings.smtpUser) {
+      setToast({
+        message: "SMTP Host and SMTP User are required to run diagnostics.",
+        type: "error"
+      });
+      return;
+    }
+    if (!testRecipient) {
+      setToast({
+        message: "Please enter a test recipient email address.",
+        type: "error"
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult({ success: null, message: "Establishing SMTP connection and transmitting payload..." });
+
+    try {
+      const response = await fetch("/api/admin/mail/test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          smtpHost: mailSettings.smtpHost,
+          smtpPort: mailSettings.smtpPort,
+          smtpSecure: mailSettings.smtpSecure,
+          smtpUser: mailSettings.smtpUser,
+          smtpPass: mailSettings.smtpPass,
+          smtpFrom: mailSettings.smtpFrom,
+          smtpSenderName: mailSettings.smtpSenderName,
+          testRecipient
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setTestResult({
+          success: true,
+          message: data.message,
+          log: data.log
+        });
+        setToast({
+          message: "SMTP Diagnostic completed successfully! Email dispatched.",
+          type: "success"
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: data.message || "Failed to establish SMTP session.",
+          log: data.log || "No diagnostic log received from server."
+        });
+        setToast({
+          message: "SMTP Diagnostic failed. Review credentials and ports.",
+          type: "error"
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: "Client-side fetch error or server is unresponsive.",
+        log: err.stack || String(err)
+      });
+      setToast({
+        message: "An error occurred while connecting to SMTP test service.",
+        type: "error"
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Upper Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+            <Mail className="w-7 h-7 text-amber-500" />
+            System Mail & SMTP Gateway Control
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Configure, manage, and test email delivery backends including Nodemailer SMTP, Firebase Mail, and Sandbox Console.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black uppercase bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            Active Gateway: {activeModuleTab.toUpperCase()}
+          </span>
+        </div>
+      </div>
+
+      {/* TOP MODULE NAVIGATION TABS */}
+      <div className="bg-amber-50/80 p-1.5 rounded-2xl border border-amber-200/80 flex flex-col sm:flex-row gap-2">
+        <button
+          type="button"
+          onClick={() => handleSelectModule("smtp")}
+          className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
+            activeModuleTab === "smtp"
+              ? "bg-amber-400 text-slate-950 shadow-xs border border-amber-500"
+              : "bg-white text-slate-700 hover:bg-amber-100/60 border border-slate-200"
+          }`}
+        >
+          <Server size={18} />
+          <span>Nodemailer SMTP</span>
+          <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full font-mono font-bold bg-slate-950/10 text-slate-950">
+            Direct Gateway
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSelectModule("firebase")}
+          className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
+            activeModuleTab === "firebase"
+              ? "bg-amber-400 text-slate-950 shadow-xs border border-amber-500"
+              : "bg-white text-slate-700 hover:bg-amber-100/60 border border-slate-200"
+          }`}
+        >
+          <Shield size={18} />
+          <span>Firebase Auth Mail</span>
+          <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full font-mono font-bold bg-slate-950/10 text-slate-950">
+            Identity Service
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSelectModule("none")}
+          className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
+            activeModuleTab === "none"
+              ? "bg-amber-400 text-slate-950 shadow-xs border border-amber-500"
+              : "bg-white text-slate-700 hover:bg-amber-100/60 border border-slate-200"
+          }`}
+        >
+          <Terminal size={18} />
+          <span>Console Sandbox</span>
+          <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full font-mono font-bold bg-slate-950/10 text-slate-950">
+            Mock Mode
+          </span>
+        </button>
+      </div>
+
+      {/* SUB-TABS: Credentials Setup vs Live Test Setup */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setSubTab("credentials")}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+            subTab === "credentials"
+              ? "bg-slate-950 text-white shadow-xs"
+              : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+          }`}
+        >
+          <Key size={14} />
+          <span>Credentials Setup</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSubTab("livetest")}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+            subTab === "livetest"
+              ? "bg-slate-950 text-white shadow-xs"
+              : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+          }`}
+        >
+          <Send size={14} />
+          <span>Live Test Setup</span>
+        </button>
+      </div>
+
+      {/* TAB 1: NODEMAILER SMTP MODULE */}
+      {activeModuleTab === "smtp" && (
+        <div className="space-y-6">
+          {subTab === "credentials" && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Server className="w-5 h-5 text-amber-500" />
+                  <h3 className="font-bold text-slate-900 text-base">SMTP Server Gateway Credentials</h3>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-600">Enable SMTP Override</span>
+                  <button
+                    type="button"
+                    onClick={() => updateField("smtpEnabled", !mailSettings.smtpEnabled)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      mailSettings.smtpEnabled ? "bg-emerald-500" : "bg-slate-300"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                        mailSettings.smtpEnabled ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">SMTP Host / Outgoing Server</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. smtp.gmail.com"
+                    value={mailSettings.smtpHost}
+                    onChange={(e) => updateField("smtpHost", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-amber-500 transition-colors font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">SMTP Port</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 587"
+                    value={mailSettings.smtpPort}
+                    onChange={(e) => updateField("smtpPort", parseInt(e.target.value) || 587)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-amber-500 transition-colors font-semibold font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">SMTP Username</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. dev@domain.com"
+                    value={mailSettings.smtpUser}
+                    onChange={(e) => updateField("smtpUser", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-amber-500 transition-colors font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-1.5 relative">
+                  <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">SMTP App Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter secret app password"
+                      value={mailSettings.smtpPass}
+                      onChange={(e) => updateField("smtpPass", e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-10 py-3 text-slate-800 outline-none focus:border-amber-500 transition-colors font-mono font-semibold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">Security Mode</label>
+                  <select
+                    value={mailSettings.smtpSecure ? "ssl" : "tls"}
+                    onChange={(e) => updateField("smtpSecure", e.target.value === "ssl")}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-amber-500 transition-colors font-semibold"
+                  >
+                    <option value="tls">STARTTLS (Port 587 / 25)</option>
+                    <option value="ssl">SSL/TLS Implicit (Port 465)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">From Email Address</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. no-reply@taxiapp.com"
+                    value={mailSettings.smtpFrom}
+                    onChange={(e) => updateField("smtpFrom", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-amber-500 transition-colors font-semibold"
+                  />
+                </div>
+
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">Sender Label / Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. TaxiApp Customer Support"
+                    value={mailSettings.smtpSenderName}
+                    onChange={(e) => updateField("smtpSenderName", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-amber-500 transition-colors font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setToast({ message: "SMTP credentials updated successfully!", type: "success" })}
+                  className="px-6 py-2.5 bg-slate-950 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-xs cursor-pointer flex items-center gap-2"
+                >
+                  <Check size={16} /> Save Credentials
+                </button>
+              </div>
+            </div>
+          )}
+
+          {subTab === "livetest" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column: Diagnostics Dispatcher */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <Send className="w-5 h-5 text-amber-500" />
+                  <h3 className="font-bold text-slate-900 text-sm">SMTP Live Test Setup & Dispatcher</h3>
+                </div>
+
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Transmit an authentic test verification payload using your configured SMTP credentials to verify real-time mail server connection and delivery.
+                </p>
+
+                <form onSubmit={handleTestSmtp} className="space-y-4 pt-2">
+                  <div className="space-y-1.5 text-xs">
+                    <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">Test Recipient Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. developer@gmail.com"
+                      value={testRecipient}
+                      onChange={(e) => setTestRecipient(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-amber-500 font-semibold"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isTesting}
+                    className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black uppercase text-xs tracking-wider py-3.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-75 cursor-pointer border border-amber-500"
+                  >
+                    {isTesting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        Connecting to SMTP Host...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        Run SMTP Live Diagnostics
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Console Output */}
+                {testResult.message && (
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-slate-400">SMTP Response Console</span>
+                      {testResult.success === true && (
+                        <span className="text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md">
+                          Linked & Delivered
+                        </span>
+                      )}
+                      {testResult.success === false && (
+                        <span className="text-[9px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md">
+                          Delivery Failed
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="bg-slate-950 text-slate-200 p-4 rounded-xl font-mono text-[11px] space-y-2 border border-slate-900 max-h-52 overflow-y-auto">
+                      <p className={testResult.success === false ? "text-rose-400" : testResult.success === true ? "text-emerald-400" : "text-amber-400"}>
+                        {testResult.message}
+                      </p>
+                      {testResult.log && (
+                        <pre className="text-slate-400 border-t border-slate-800 pt-2 text-[10px] leading-relaxed whitespace-pre-wrap">
+                          {testResult.log}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Active OTP Monitor */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-amber-500" />
+                    <h3 className="font-bold text-slate-900 text-sm">Active Cached OTP Tokens</h3>
+                  </div>
+                  <button
+                    onClick={() => fetchActiveOtps()}
+                    disabled={isRefreshingOtps}
+                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
+                    title="Refresh Active OTP Codes"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingOtps ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Active security OTP tokens stored in backend server cache for account authentication and reset requests.
+                </p>
+
+                <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                  {otps.length === 0 ? (
+                    <div className="text-center py-10 border border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs">
+                      No active OTP tokens in server memory.
+                    </div>
+                  ) : (
+                    otps.map((item, index) => (
+                      <div key={index} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3 text-xs">
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-900 font-mono text-xs truncate max-w-[140px]" title={item.email}>
+                            {item.email}
+                          </p>
+                          <div className="flex items-center gap-2 text-[9px] text-slate-500 uppercase font-bold">
+                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200">
+                              {item.role || 'user'}
+                            </span>
+                            <span>•</span>
+                            <span>{item.status || 'Active'}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="inline-block bg-slate-900 text-amber-400 font-mono font-black text-base px-2.5 py-1 rounded-lg border border-slate-800 tracking-widest">
+                            {item.otp}
+                          </span>
+                          <p className="text-[9px] text-slate-400 mt-1 font-mono">
+                            Expires {new Date(item.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: FIREBASE AUTH MAIL MODULE */}
+      {activeModuleTab === "firebase" && (
+        <div className="space-y-6">
+          {subTab === "credentials" && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-amber-500" />
+                  <h3 className="font-bold text-slate-900 text-base">Firebase Auth Mail Configuration</h3>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-600">Enable Firebase Module</span>
+                  <button
+                    type="button"
+                    onClick={() => updateField("firebaseEnabled", !mailSettings.firebaseEnabled)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      mailSettings.firebaseEnabled ? "bg-emerald-500" : "bg-slate-300"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                        mailSettings.firebaseEnabled ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-amber-900">Connected to active Firebase Identity SDK Service.</p>
+                  <p className="text-amber-800 leading-relaxed">
+                    Delegated password reset and verification emails rely on Google Identity Toolkit parameters configured in your project settings.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5 pt-2 font-mono text-[11px] text-amber-900">
+                    <p><strong>Project ID:</strong> {config.firebase?.projectId || "demo-taxiapp"}</p>
+                    <p><strong>App ID:</strong> {config.firebase?.appId ? `${config.firebase.appId.slice(0, 16)}...` : "1:386217356005:web:..."}</p>
+                    <p className="md:col-span-2"><strong>API Key:</strong> {config.firebase?.apiKey ? `${config.firebase.apiKey.slice(0, 12)}...` : "AIzaSy_Active_Key"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <h4 className="text-xs font-black uppercase text-slate-600 tracking-wider">Custom Action Redirect URL</h4>
+                <input
+                  type="text"
+                  placeholder="https://your-domain.com/auth/action"
+                  value={config.firebase?.actionCodeUrl || "https://taxiapp.com/reset-password"}
+                  onChange={(e) => updateConfig((prev: any) => ({
+                    ...prev,
+                    firebase: {
+                      ...(prev.firebase || {}),
+                      actionCodeUrl: e.target.value
+                    }
+                  }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-semibold text-slate-800 outline-none"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setToast({ message: "Firebase Auth Mail settings saved!", type: "success" })}
+                  className="px-6 py-2.5 bg-slate-950 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-xs cursor-pointer flex items-center gap-2"
+                >
+                  <Check size={16} /> Save Firebase Mail Config
+                </button>
+              </div>
+            </div>
+          )}
+
+          {subTab === "livetest" && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4 max-w-xl">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <Shield className="w-5 h-5 text-amber-500" />
+                <h3 className="font-bold text-slate-900 text-sm">Firebase Password Reset Link Live Test</h3>
+              </div>
+
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Send a live test account password recovery link using Firebase Authentication SDK.
+              </p>
+
+              <div className="space-y-3">
+                <div className="space-y-1.5 text-xs">
+                  <label className="font-bold text-slate-700 block uppercase tracking-wider text-[10px]">Test Account Email</label>
+                  <input
+                    type="email"
+                    placeholder="user@test.com"
+                    value={testRecipient}
+                    onChange={(e) => setTestRecipient(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none font-semibold"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!testRecipient) {
+                      setToast({ message: "Enter recipient email address.", type: "error" });
+                      return;
+                    }
+                    setToast({ message: `Firebase password reset link requested for ${testRecipient}`, type: "success" });
+                  }}
+                  className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black uppercase text-xs tracking-wider py-3.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer border border-amber-500"
+                >
+                  <Send className="w-4 h-4" /> Trigger Firebase Reset Link
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: CONSOLE MOCK SANDBOX MODULE */}
+      {activeModuleTab === "none" && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+            <Terminal className="w-5 h-5 text-amber-500" />
+            <h3 className="font-bold text-slate-900 text-sm">Console Sandbox Mock Mode</h3>
+          </div>
+
+          <p className="text-xs text-slate-500 leading-relaxed">
+            In Console Sandbox Mock mode, all generated reset codes and verification tokens are output directly into the backend terminal logs without dispatching external network emails. Ideal for offline staging and local testing.
+          </p>
+
+          <div className="p-4 bg-slate-950 text-amber-400 rounded-xl font-mono text-xs border border-slate-900 space-y-1">
+            <p className="text-slate-400">[MOCK ENGINE ACTIVE]</p>
+            <p>Verification Code: <span className="text-white font-bold">849201</span></p>
+            <p>Target: <span className="text-slate-300">rider@taxiapp.test</span></p>
+            <p className="text-slate-500 text-[10px]">Logged locally at {new Date().toLocaleTimeString()}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
