@@ -1010,5 +1010,8 @@
   "brandName": "TaxiApp",
   "vapid_public_key": "BGII51Du3qrvkxHpIMbANFlkckLOouKEQxeWfMIZwDRQrquX1RfJKGuz5Yl_N9sCgb0sQBhGwKrtNDaUR44qmKY",
   "vapid_private_key": "RzSVhidxTpav7YRUYmWWnQuFKoUSoFGchvtV3xPogu0",
-  "lastSyncTimestamp": 1788932508257
+  "lastSyncTimestamp": 1788932508257,
+  "appName": "TaxiApp Mobility Network",
+  "currency": "INR",
+  "commissionRate": 0
 }

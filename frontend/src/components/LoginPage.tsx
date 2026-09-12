@@ -510,6 +510,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [isVerifyingMobileOtp, setIsVerifyingMobileOtp] = useState(false);
   const [isFirebaseOtpActive, setIsFirebaseOtpActive] = useState(false);
   const [firebaseOtpFailed, setFirebaseOtpFailed] = useState(false);
+  const [firebaseSignupError, setFirebaseSignupError] = useState<{ code: string; message: string; tip: string } | null>(null);
   const [mobileResendCountdown, setMobileResendCountdown] = useState(0);
   const [isListeningForSms, setIsListeningForSms] = useState(false);
 
@@ -1180,6 +1181,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [resetErrorMsg, setResetErrorMsg] = useState("");
   const [isFirebaseResetOtpActive, setIsFirebaseResetOtpActive] = useState(false);
   const [firebaseResetOtpFailed, setFirebaseResetOtpFailed] = useState(false);
+  const [firebaseResetError, setFirebaseResetError] = useState<{ code: string; message: string; tip: string } | null>(null);
   const [isVerifyingResetOtp, setIsVerifyingResetOtp] = useState(false);
   const [resetResendCountdown, setResetResendCountdown] = useState(0);
 
@@ -1796,6 +1798,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
       // Attempt Real Device SMS via Firebase Phone Auth FIRST (matching Sign-Up flow)
       try {
+        setFirebaseResetError(null);
         await sendFirebasePhoneOtp(fullPhone, "recaptcha-container");
         setIsFirebaseResetOtpActive(true);
         setFirebaseResetOtpFailed(false);
@@ -1805,9 +1808,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           document.getElementById("reset-otp-0")?.focus();
         }, 80);
       } catch (fbErr: any) {
-        console.warn("[FIREBASE RESET PHONE AUTH NOTICE] Firebase SMS unavailable, using server fallback:", fbErr?.code || fbErr?.message || fbErr);
+        const errCode = fbErr?.code || "auth/unknown-error";
+        const errMsg = fbErr?.message || String(fbErr);
+        console.warn("[FIREBASE RESET PHONE AUTH NOTICE] Firebase SMS failed:", { errCode, errMsg, fbErr });
         setFirebaseResetOtpFailed(true);
         setIsFirebaseResetOtpActive(false);
+
+        let tip = "Check your Firebase project settings in Firebase Console.";
+        if (errCode === "auth/operation-not-allowed") {
+          tip = "Phone Authentication is not enabled in Firebase Console. Go to Authentication > Sign-in method > Phone, toggle to Enabled, and click Save.";
+        } else if (errCode === "auth/quota-exceeded" || errCode === "auth/too-many-requests") {
+          tip = "Daily SMS quota exceeded on Firebase free tier. Go to Firebase Console > Authentication > Sign-in method > Phone > 'Phone numbers for testing', and add +91 9100850500 with a test code (e.g. 123456).";
+        } else if (errCode === "auth/unauthorized-domain") {
+          tip = "Domain taxiapp.in added to Authorized domains may take 5-10 mins to propagate across Google CDN.";
+        } else if (errCode === "auth/captcha-check-failed") {
+          tip = "reCAPTCHA verification was blocked or timed out. Please retry with a clear browser window.";
+        } else if (errCode === "auth/invalid-phone-number") {
+          tip = "Invalid phone format. Please ensure country code (+91) is present.";
+        }
+
+        setFirebaseResetError({
+          code: errCode,
+          message: errMsg,
+          tip
+        });
 
         // Fallback ONLY when Firebase SMS delivery is unavailable
         let serverOtp = "";
@@ -1831,7 +1855,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           serverOtp = Math.floor(100000 + Math.random() * 900000).toString();
         }
         setDispatchedResetOtp(serverOtp);
-        addNotification(`📲 Verification Code [${serverOtp}] generated for ${fullPhone}. Use the Auto-Fill button below to continue.`, "success");
+        addNotification(`⚠️ Firebase SMS Failed [${errCode}]. Backup Code [${serverOtp}] generated.`, "warning");
         setTimeout(() => {
           document.getElementById("reset-otp-0")?.focus();
         }, 80);
@@ -1942,6 +1966,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
       let isFirebaseSent = false;
       try {
+        setFirebaseSignupError(null);
         // 1. Attempt Real Device SMS via Firebase Phone Auth
         await sendFirebasePhoneOtp(signUpPhone, "recaptcha-container");
         isFirebaseSent = true;
@@ -1954,9 +1979,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           document.getElementById("reg-mobile-otp-0")?.focus();
         }, 80);
       } catch (fbErr: any) {
-        console.warn("[FIREBASE PHONE AUTH NOTICE] Using server OTP fallback:", fbErr.message || fbErr);
+        const errCode = fbErr?.code || "auth/unknown-error";
+        const errMsg = fbErr?.message || String(fbErr);
+        console.warn("[FIREBASE PHONE AUTH NOTICE] Failed:", { errCode, errMsg, fbErr });
         setFirebaseOtpFailed(true);
         setIsFirebaseOtpActive(false);
+
+        let tip = "Check your Firebase project settings in Firebase Console.";
+        if (errCode === "auth/operation-not-allowed") {
+          tip = "Phone Authentication is not enabled in Firebase Console. Go to Authentication > Sign-in method > Phone, toggle to Enabled, and click Save.";
+        } else if (errCode === "auth/quota-exceeded" || errCode === "auth/too-many-requests") {
+          tip = "Daily SMS quota exceeded on Firebase free tier. Go to Firebase Console > Authentication > Sign-in method > Phone > 'Phone numbers for testing', and add your number with a test code (e.g. 123456).";
+        } else if (errCode === "auth/unauthorized-domain") {
+          tip = "Domain taxiapp.in added to Authorized domains may take 5-10 mins to propagate across Google CDN.";
+        } else if (errCode === "auth/captcha-check-failed") {
+          tip = "reCAPTCHA verification was blocked or timed out. Please retry with a clear browser window.";
+        } else if (errCode === "auth/invalid-phone-number") {
+          tip = "Invalid phone format. Please ensure country code is present.";
+        }
+
+        setFirebaseSignupError({
+          code: errCode,
+          message: errMsg,
+          tip
+        });
 
         // 2. Server-side OTP sync & fallback ONLY if Firebase fails
         let serverOtp = "";
@@ -1979,7 +2025,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         }
         setDispatchedMobileOtp(serverOtp);
         setMobileResendCountdown(30);
-        addNotification(`📲 Verification Code [${serverOtp}] generated for ${signUpPhone}. Click "Auto-Fill Code" below to proceed.`, "success");
+        addNotification(`⚠️ Firebase SMS Failed [${errCode}]. Backup Code [${serverOtp}] generated.`, "warning");
       }
     } finally {
       setIsSendingMobileOtp(false);
@@ -3111,6 +3157,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       {/* Seamless 6-Digit Mobile OTP Section below mobile input */}
                       {resetStep === "verify" && (
                         <div className="pt-2 space-y-3.5 font-sans transition-all animate-fadeIn">
+                          {/* Firebase Error Diagnostic Banner */}
+                          {firebaseResetError && (
+                            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-xl text-left text-xs space-y-1.5 shadow-2xs">
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-amber-900 dark:text-amber-200">
+                                      Firebase SMS Delivery Notice
+                                    </span>
+                                    <code className="text-[10px] font-mono bg-amber-200/80 dark:bg-amber-900 text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded">
+                                      {firebaseResetError.code}
+                                    </code>
+                                  </div>
+                                  <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                                    {firebaseResetError.tip}
+                                  </p>
+                                  <div className="pt-1 flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDispatchResetOtp()}
+                                      disabled={resetLoading}
+                                      className="text-[11px] font-bold text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                    >
+                                      <RefreshCw size={11} className={resetLoading ? "animate-spin" : ""} /> Retry Real Firebase SMS
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Real SMS or Fallback Verification Code Status Badge */}
                           {!resetLoading && (
                             <div className="flex flex-col items-center gap-1.5 justify-center">
@@ -3123,7 +3201,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                                 <div className="flex flex-col items-center gap-1">
                                   <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-900 border border-amber-200 rounded-full text-[11px] font-bold shadow-2xs">
                                     <KeyRound size={13} className="text-amber-600" />
-                                    Verification Code generated for {resetPhone || "your device"}
+                                    Backup Code for {resetPhone || "your device"}
                                   </span>
                                   <button
                                     type="button"
@@ -3636,6 +3714,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                             </div>
                           </div>
 
+                          {/* Firebase Error Diagnostic Banner */}
+                          {firebaseSignupError && (
+                            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-xl text-left text-xs space-y-1.5 shadow-2xs">
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-amber-900 dark:text-amber-200">
+                                      Firebase SMS Delivery Notice
+                                    </span>
+                                    <code className="text-[10px] font-mono bg-amber-200/80 dark:bg-amber-900 text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded">
+                                      {firebaseSignupError.code}
+                                    </code>
+                                  </div>
+                                  <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                                    {firebaseSignupError.tip}
+                                  </p>
+                                  <div className="pt-1 flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDispatchMobileOtp()}
+                                      disabled={isSendingMobileOtp}
+                                      className="text-[11px] font-bold text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                    >
+                                      <RefreshCw size={11} className={isSendingMobileOtp ? "animate-spin" : ""} /> Retry Real Firebase SMS
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Gateway Status Badge */}
                           {!isSendingMobileOtp && (
                             <div className="flex flex-col items-center gap-1.5 justify-center">
@@ -3648,7 +3758,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                                 <div className="flex flex-col items-center gap-1">
                                   <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-900 border border-amber-200 rounded-full text-[11px] font-bold shadow-2xs">
                                     <KeyRound size={13} className="text-amber-600" />
-                                    Verification Code generated for {signUpPhone || "your device"}
+                                    Backup Code for {signUpPhone || "your device"}
                                   </span>
                                   <button
                                     type="button"

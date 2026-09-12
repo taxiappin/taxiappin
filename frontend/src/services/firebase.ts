@@ -70,20 +70,11 @@ let activeRecaptchaVerifier: RecaptchaVerifier | null = null;
  */
 export function setupRecaptchaVerifier(containerId: string = "recaptcha-container"): RecaptchaVerifier {
   const auth = getFirebaseAuth();
-
-  // Ensure element exists in DOM or create on-the-fly invisible anchor
-  let container = document.getElementById(containerId);
-  if (!container) {
-    container = document.createElement("div");
-    container.id = containerId;
-    container.style.position = "fixed";
-    container.style.bottom = "0";
-    container.style.right = "0";
-    container.style.zIndex = "-1";
-    document.body.appendChild(container);
+  if (typeof window === "undefined") {
+    throw new Error("reCAPTCHA requires browser window context");
   }
 
-  // Clear existing before re-creating to prevent reCAPTCHA already rendered error
+  // Clear existing verifier instance before initializing fresh
   if (activeRecaptchaVerifier) {
     try {
       activeRecaptchaVerifier.clear();
@@ -92,7 +83,22 @@ export function setupRecaptchaVerifier(containerId: string = "recaptcha-containe
     }
     activeRecaptchaVerifier = null;
   }
-  container.innerHTML = "";
+
+  // Ensure fresh, unpolluted container element in DOM
+  let container = document.getElementById(containerId);
+  if (container && container.parentNode) {
+    try {
+      container.parentNode.removeChild(container);
+    } catch (_) {}
+  }
+
+  container = document.createElement("div");
+  container.id = containerId;
+  container.style.position = "fixed";
+  container.style.bottom = "16px";
+  container.style.right = "16px";
+  container.style.zIndex = "999999";
+  document.body.appendChild(container);
 
   activeRecaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
     size: "invisible",
@@ -137,6 +143,10 @@ export async function sendFirebasePhoneOtp(
     };
   } catch (error: any) {
     console.error("[FIREBASE AUTH ERROR] signInWithPhoneNumber failed:", error);
+    if (activeRecaptchaVerifier) {
+      try { activeRecaptchaVerifier.clear(); } catch (_) {}
+      activeRecaptchaVerifier = null;
+    }
     throw error;
   }
 }
