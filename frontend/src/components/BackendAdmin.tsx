@@ -2100,10 +2100,15 @@ export const BackendAdmin = ({ onOpenFrontend }: { onOpenFrontend?: () => void }
   const [authenticatedStaff, setAuthenticatedStaff] = useState<StaffUserProfile | null>(() => {
     try {
       const saved = localStorage.getItem('backend_authenticated_staff');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.role && (parsed.username || parsed.name)) {
+          return parsed;
+        }
+      }
     } catch (e) {}
-    // Default to Super Admin so preview/tests work smoothly or user can switch/logout
-    return DEFAULT_STAFF_PROFILES[0];
+    // Require explicit admin credentials login before accessing control panel
+    return null;
   });
 
   const [showSwitchRoleModal, setShowSwitchRoleModal] = useState(false);
