@@ -166,22 +166,6 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
                   {currentBanner.buttonText}
                 </button>
               )}
-
-              {/* Direct Download the App button in banner bar */}
-              {!currentBanner.buttonText?.toLowerCase().includes('app') && !currentBanner.buttonText?.toLowerCase().includes('apk') && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerDirectApkDownload();
-                  }}
-                  className="px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
-                  title="Direct Download the App"
-                >
-                  <Download className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
-                  <span>Download the App</span>
-                </button>
-              )}
             </div>
           </div>
         )}
