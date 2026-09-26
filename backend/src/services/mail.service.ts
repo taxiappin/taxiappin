@@ -2,90 +2,79 @@ import nodemailer from "nodemailer";
 import { globalConfig } from "../models/db";
 
 export interface MailConfig {
-  mailProvider: "smtp" | "none";
-  smtpHost: string;
-  smtpPort: number;
-  smtpSecure: boolean;
-  smtpUser: string;
-  smtpPass: string;
-  smtpFrom: string;
-  smtpSenderName: string;
-  smtpEnabled: boolean;
+  smtpEnabled?: boolean;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPass?: string;
+  smtpSecure?: boolean;
+  fromEmail?: string;
+  fromName?: string;
 }
 
 export function getMailConfig(): MailConfig {
-  const defaultMailSettings: MailConfig = {
-    mailProvider: "smtp",
-    smtpHost: "smtp.example.com",
-    smtpPort: 587,
-    smtpSecure: false,
-    smtpUser: "",
-    smtpPass: "",
-    smtpFrom: "no-reply@example.com",
-    smtpSenderName: "TaxiApp Support",
-    smtpEnabled: false
-  };
-
-  const currentSettings = globalConfig?.mailSettings || {};
+  const config = (globalConfig as any)?.mailSettings || (globalConfig as any)?.smtp || {};
   return {
-    ...defaultMailSettings,
-    ...currentSettings
+    smtpEnabled: config.smtpEnabled ?? Boolean(process.env.SMTP_HOST && process.env.SMTP_USER),
+    smtpHost: config.smtpHost || process.env.SMTP_HOST || "",
+    smtpPort: Number(config.smtpPort || process.env.SMTP_PORT || 587),
+    smtpUser: config.smtpUser || process.env.SMTP_USER || "",
+    smtpPass: config.smtpPass || process.env.SMTP_PASS || "",
+    smtpSecure: config.smtpSecure ?? (Number(config.smtpPort || process.env.SMTP_PORT) === 465),
+    fromEmail: config.fromEmail || process.env.SMTP_FROM_EMAIL || config.smtpUser || "noreply@taxiapp.com",
+    fromName: config.fromName || "TaxiApp Team",
   };
 }
 
-/**
- * Sends an email using SMTP (nodemailer)
- */
 export async function sendSmtpEmail(
   to: string,
   subject: string,
-  htmlContent: string,
+  html: string,
   customConfig?: MailConfig
 ): Promise<{ success: boolean; message: string; log?: string }> {
   const config = customConfig || getMailConfig();
 
   if (!config.smtpHost || !config.smtpUser) {
+    console.log(`[SMTP SIMULATED] To: ${to} | Subject: ${subject}`);
     return {
-      success: false,
-      message: "SMTP is not fully configured. Please fill Host, User, and Password in Mail Settings.",
-      log: "Missing SMTP configuration values."
+      success: true,
+      message: `Simulated: Email logged to console (SMTP credentials not configured)`,
+      log: `Simulated send to ${to}`,
     };
   }
 
   try {
     const transporter = nodemailer.createTransport({
       host: config.smtpHost,
-      port: Number(config.smtpPort) || 587,
-      secure: config.smtpSecure, // true for port 465, false for other ports
+      port: config.smtpPort || 587,
+      secure: config.smtpSecure ?? false,
       auth: {
         user: config.smtpUser,
-        pass: config.smtpPass
+        pass: config.smtpPass,
       },
       tls: {
-        rejectUnauthorized: false // Helps avoid SSL issues with self-signed certs
-      }
+        rejectUnauthorized: false,
+      },
     });
 
     const info = await transporter.sendMail({
-      from: `"${config.smtpSenderName}" <${config.smtpFrom || config.smtpUser}>`,
+      from: `"${config.fromName || 'TaxiApp'}" <${config.fromEmail || config.smtpUser}>`,
       to,
       subject,
-      html: htmlContent
+      html,
     });
 
-    console.log(`[SMTP EMAIL SENT] Message ID: ${info.messageId} to ${to}`);
     return {
       success: true,
-      message: `Email sent successfully. Message ID: ${info.messageId}`,
-      log: JSON.stringify(info)
+      message: `Email successfully delivered to ${to}`,
+      log: `Message ID: ${info.messageId}`,
     };
-  } catch (error: any) {
-    console.error("[SMTP EMAIL ERROR]", error);
+  } catch (err: any) {
+    console.error(`[SMTP ERROR] Failed to send email to ${to}:`, err.message);
     return {
       success: false,
-      message: error.message || "Failed to send SMTP email.",
-      log: error.stack || String(error)
+      message: err.message || "Failed to send email via SMTP",
+      log: err.stack,
     };
   }
 }
-

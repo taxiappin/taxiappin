@@ -569,11 +569,30 @@ export function getDriverVehicleProfileImage(profile: any): string {
 
 /**
  * Resolves the active tile URL, ensuring clean free basemaps without "API KEY REQUIRED" watermarks.
- * Defaults to high-speed Humanitarian OpenStreetMap styled as Uber-minimal gray.
+ * Supports Google Maps, Ola Maps, and OpenStreetMap presets.
  */
 export function getResolvedTileUrl(mapConfig?: any): string {
+  const provider = mapConfig?.provider || (mapConfig?.googleMapsEnabled ? "google" : mapConfig?.olaMapsEnabled ? "ola" : "osm");
+
+  // 1. Google Maps Tiles
+  if (provider === "google") {
+    if (mapConfig?.googleMapsApiKey) {
+      return `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${mapConfig.googleMapsApiKey}`;
+    }
+    return "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}";
+  }
+
+  // 2. Ola Maps Tiles
+  if (provider === "ola") {
+    if (mapConfig?.olaApiKey) {
+      return `https://api.olamaps.io/tiles/v1/styles/default-light/{z}/{x}/{y}.png?api_key=${mapConfig.olaApiKey}`;
+    }
+    // Clean minimal basemap if key not yet entered
+    return "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+  }
+
+  // 3. Custom or Preset OpenStreetMap Basemaps
   const customUrl = mapConfig?.tileLayerUrl;
-  // If user provided a valid custom URL that is not Carto without an API key or legacy World Street Map
   if (
     customUrl &&
     !customUrl.includes("World_Street_Map") &&
@@ -604,9 +623,14 @@ export function getResolvedTileUrl(mapConfig?: any): string {
  * Returns the CSS class for styling the tile layer to match Uber's clean minimalist gray or night mode
  */
 export function getTileLayerClassName(mapConfig?: any, isDark?: boolean): string {
+  const provider = mapConfig?.provider || (mapConfig?.googleMapsEnabled ? "google" : mapConfig?.olaMapsEnabled ? "ola" : "osm");
+  if (provider === "google" || provider === "ola") {
+    return "";
+  }
   const preset = mapConfig?.tilePreset;
   if (preset === "satellite" || preset === "fullcolor" || preset === "topo" || preset === "esri-gray") {
     return "";
   }
   return isDark || preset === "dark" ? "map-tiles-uber-dark" : "map-tiles-uber-minimal";
 }
+

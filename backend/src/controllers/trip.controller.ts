@@ -16,11 +16,13 @@ import {
   saveSubscriptionTransaction,
   syncMessage,
   deleteThreadMessages,
-  removeMessage
+  removeMessage,
+  getDbIo
 } from "../models/db";
 import { broadcastNotification, sendNotificationToUser } from "../services/webPushService";
 import { getPgPool, getIsPgConnected } from "../models/postgres";
 import { generateLocalTripId, generateIntercityTripId } from "../services/idGenerator";
+import { decodeGooglePolyline, calculateDistanceKm } from "../utils/geoUtils";
 
 async function geminiGeocodeReverse(lat: string, lon: string): Promise<any | null> {
   const ai = getGeminiClient();
@@ -84,12 +86,260 @@ Generate a realistic and accurate JSON object containing:
   return null;
 }
 
+function formatDistanceHelper(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
+function formatDurationHelper(seconds: number): string {
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes} mins`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return `${hours}h ${rem}m`;
+}
+
+function generateMathPseudoRoute(start: [number, number], end: [number, number]) {
+  const dLat = end[0] - start[0];
+  const dLng = end[1] - start[1];
+  const straightKm = calculateDistanceKm(start[0], start[1], end[0], end[1]);
+  const distance = straightKm * 1000 * 1.25;
+  const duration = distance / 13.88; // ~50 km/h
+
+  const coordinates: [number, number][] = [];
+  const steps = 30;
+  const pLat = -dLng;
+  const pLng = dLat;
+
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    let lat = start[0] + dLat * t;
+    let lng = start[1] + dLng * t;
+    if (i > 0 && i < steps) {
+      const wave1 = Math.sin(t * Math.PI * 2) * 0.08;
+      const wave2 = Math.cos(t * Math.PI * 5) * 0.03;
+      lat += pLat * (wave1 + wave2);
+      lng += pLng * (wave1 + wave2);
+    }
+    coordinates.push([lat, lng]);
+  }
+
+  return { coordinates, distance, duration };
+}
+
+// Direction & Routing Proxy supporting Google Maps, Ola Maps, and OSRM
+export async function getDirections(req: Request, res: Response) {
+  const { origin, destination, mode = "driving" } = req.query;
+  if (!origin || !destination) {
+    return res.status(400).json({ error: "Parameters 'origin' and 'destination' are required in format 'lat,lng'" });
+  }
+
+  const [startLat, startLng] = String(origin).split(",").map(Number);
+  const [endLat, endLng] = String(destination).split(",").map(Number);
+
+  if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+    return res.status(400).json({ error: "Invalid coordinate values for origin or destination" });
+  }
+
+  const mapConfig = globalConfig?.map || {};
+  const activeProvider = mapConfig.provider || (mapConfig.googleMapsEnabled ? "google" : mapConfig.olaMapsEnabled ? "ola" : "osm");
+
+  // 1. Google Maps Directions API
+  if (activeProvider === "google" && mapConfig.googleMapsApiKey) {
+    try {
+      const gUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLat},${startLng}&destination=${endLat},${endLng}&mode=${mode}&key=${mapConfig.googleMapsApiKey}`;
+      const gResp = await fetch(gUrl);
+      if (gResp.ok) {
+        const gData = await gResp.json();
+        if (gData.status === "OK" && gData.routes?.length > 0) {
+          const route = gData.routes[0];
+          const leg = route.legs?.[0] || {};
+          const decoded = decodeGooglePolyline(route.overview_polyline?.points || "");
+          if (decoded.length > 0) {
+            decoded[0] = [startLat, startLng];
+            decoded[decoded.length - 1] = [endLat, endLng];
+          }
+
+          const distanceMeters = leg.distance?.value || 0;
+          const durationSeconds = leg.duration?.value || 0;
+
+          return res.json({
+            ok: true,
+            provider: "google",
+            coordinates: decoded,
+            distance: distanceMeters,
+            duration: durationSeconds,
+            distanceStr: leg.distance?.text || formatDistanceHelper(distanceMeters),
+            durationStr: leg.duration?.text || formatDurationHelper(durationSeconds),
+            summary: route.summary || "Google Fast Route"
+          });
+        }
+      }
+    } catch (gErr: any) {
+      console.warn("[GOOGLE DIRECTIONS] Error calling Google Directions API:", gErr.message);
+    }
+  }
+
+  // 2. Ola Maps Routing API
+  if (activeProvider === "ola" && mapConfig.olaApiKey) {
+    try {
+      const olaUrl = `https://api.olamaps.io/routing/v1/directions?origin=${startLat},${startLng}&destination=${endLat},${endLng}&mode=driving&api_key=${mapConfig.olaApiKey}`;
+      const olaResp = await fetch(olaUrl);
+      if (olaResp.ok) {
+        const olaData = await olaResp.json();
+        if ((olaData.status === "SUCCESS" || olaData.routes) && olaData.routes?.length > 0) {
+          const route = olaData.routes[0];
+          const leg = route.legs?.[0] || {};
+          let coords: [number, number][] = [];
+          if (route.overview_polyline) {
+            coords = decodeGooglePolyline(route.overview_polyline);
+          } else if (Array.isArray(route.geometry?.coordinates)) {
+            coords = route.geometry.coordinates.map((c: any) => [c[1], c[0]]);
+          }
+
+          if (coords.length > 0) {
+            coords[0] = [startLat, startLng];
+            coords[coords.length - 1] = [endLat, endLng];
+          }
+
+          const distanceMeters = leg.distance || route.distance || 0;
+          const durationSeconds = leg.duration || route.duration || 0;
+
+          return res.json({
+            ok: true,
+            provider: "ola",
+            coordinates: coords,
+            distance: distanceMeters,
+            duration: durationSeconds,
+            distanceStr: formatDistanceHelper(distanceMeters),
+            durationStr: formatDurationHelper(durationSeconds),
+            summary: "Ola Krutrim Route"
+          });
+        }
+      }
+    } catch (olaErr: any) {
+      console.warn("[OLA DIRECTIONS] Error calling Ola Maps Routing API:", olaErr.message);
+    }
+  }
+
+  // 3. OpenStreetMap Routing Machine (OSRM) - Default & Resilient Provider
+  try {
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+    const osrmResp = await fetch(osrmUrl);
+    if (osrmResp.ok) {
+      const osrmData = await osrmResp.json();
+      if (osrmData.code === "Ok" && osrmData.routes?.length > 0) {
+        const route = osrmData.routes[0];
+        const coords = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+        if (coords.length > 0) {
+          coords[0] = [startLat, startLng];
+          coords[coords.length - 1] = [endLat, endLng];
+        }
+        const distanceMeters = route.distance;
+        const durationSeconds = route.duration;
+        return res.json({
+          ok: true,
+          provider: "osm",
+          coordinates: coords,
+          distance: distanceMeters,
+          duration: durationSeconds,
+          distanceStr: formatDistanceHelper(distanceMeters),
+          durationStr: formatDurationHelper(durationSeconds),
+          summary: "OSRM Open Route"
+        });
+      }
+    }
+  } catch (osrmErr: any) {
+    console.warn("[OSRM DIRECTIONS] Error:", osrmErr.message);
+  }
+
+  // 4. Mathematical simulated road fallback (zero failure rate)
+  const mathRoute = generateMathPseudoRoute([startLat, startLng], [endLat, endLng]);
+  return res.json({
+    ok: true,
+    provider: "fallback_math",
+    coordinates: mathRoute.coordinates,
+    distance: mathRoute.distance,
+    duration: mathRoute.duration,
+    distanceStr: formatDistanceHelper(mathRoute.distance),
+    durationStr: formatDurationHelper(mathRoute.duration),
+    summary: "Simulated Road Geometry"
+  });
+}
+
 // Geocoding reverse proxy
 export async function geocodeReverse(req: Request, res: Response) {
   const { lat, lon } = req.query;
   if (!lat || !lon) {
     return res.status(400).json({ error: "Latitude and longitude are required" });
   }
+
+  const mapConfig = globalConfig?.map || {};
+  const activeProvider = mapConfig.provider || (mapConfig.googleMapsEnabled ? "google" : mapConfig.olaMapsEnabled ? "ola" : "osm");
+
+  // 1. Google Maps Reverse Geocoding
+  if (activeProvider === "google" && mapConfig.googleMapsApiKey) {
+    try {
+      const gResp = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${mapConfig.googleMapsApiKey}`
+      );
+      if (gResp.ok) {
+        const gData = await gResp.json();
+        if (gData.status === "OK" && gData.results?.length > 0) {
+          const top = gData.results[0];
+          const addrObj: any = {};
+          for (const comp of top.address_components || []) {
+            if (comp.types.includes("route")) addrObj.road = comp.long_name;
+            if (comp.types.includes("sublocality") || comp.types.includes("neighborhood")) addrObj.suburb = comp.long_name;
+            if (comp.types.includes("locality")) addrObj.city = comp.long_name;
+            if (comp.types.includes("administrative_area_level_1")) addrObj.state = comp.long_name;
+            if (comp.types.includes("postal_code")) addrObj.postcode = comp.long_name;
+            if (comp.types.includes("country")) addrObj.country = comp.long_name;
+          }
+          return res.json({
+            place_id: top.place_id,
+            lat: String(lat),
+            lon: String(lon),
+            display_name: top.formatted_address,
+            address: addrObj,
+            provider: "google"
+          });
+        }
+      }
+    } catch (gErr: any) {
+      console.warn("[GOOGLE REVERSE] Failed, falling back to OSM:", gErr.message);
+    }
+  }
+
+  // 2. Ola Maps Reverse Geocoding
+  if (activeProvider === "ola" && mapConfig.olaApiKey) {
+    try {
+      const olaResp = await fetch(
+        `https://api.olamaps.io/places/v1/reverse-geocode?latlng=${lat},${lon}&api_key=${mapConfig.olaApiKey}`
+      );
+      if (olaResp.ok) {
+        const olaData = await olaResp.json();
+        if (olaData.results && olaData.results.length > 0) {
+          const top = olaData.results[0];
+          return res.json({
+            place_id: top.place_id || `ola_${lat}_${lon}`,
+            lat: String(lat),
+            lon: String(lon),
+            display_name: top.formatted_address || top.name || `${lat}, ${lon}`,
+            address: {
+              road: top.name,
+              city: top.address_components?.find((c: any) => c.types?.includes("locality"))?.long_name || "",
+              country: "India"
+            },
+            provider: "ola"
+          });
+        }
+      }
+    } catch (olaErr: any) {
+      console.warn("[OLA REVERSE] Failed, falling back to OSM:", olaErr.message);
+    }
+  }
+
   try {
     const queryString = new URLSearchParams(req.query as any).toString();
     const usersAgent = `TaxiAppLocalApp/3.1 (UserSession_${Math.floor(Math.random() * 1000000)}; contact: iamshrenu@gmail.com)`;
@@ -183,6 +433,7 @@ export async function geocodeReverse(req: Request, res: Response) {
     });
   }
 }
+
 
 let geminiClient: any = null;
 function getGeminiClient() {
@@ -402,6 +653,77 @@ export async function geocodeSearch(req: Request, res: Response) {
   const originalQuery = q.toString();
   const correctedQuery = correctSpellingInQuery(originalQuery);
   const qLower = correctedQuery.toLowerCase().trim();
+
+  const mapConfig = globalConfig?.map || {};
+  const activeProvider = mapConfig.provider || (mapConfig.googleMapsEnabled ? "google" : mapConfig.olaMapsEnabled ? "ola" : "osm");
+
+  // 1. Google Maps Geocoding / Search if active and key configured
+  if (activeProvider === "google" && mapConfig.googleMapsApiKey) {
+    try {
+      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(correctedQuery)}&key=${mapConfig.googleMapsApiKey}`;
+      const gResp = await fetch(gUrl);
+      if (gResp.ok) {
+        const gData = await gResp.json();
+        if (gData.status === "OK" && gData.results?.length > 0) {
+          const mapped = gData.results.slice(0, 8).map((r: any) => {
+            const loc = r.geometry?.location || {};
+            const addrObj: any = {};
+            for (const comp of r.address_components || []) {
+              if (comp.types.includes("route")) addrObj.road = comp.long_name;
+              if (comp.types.includes("sublocality") || comp.types.includes("neighborhood")) addrObj.suburb = comp.long_name;
+              if (comp.types.includes("locality")) addrObj.city = comp.long_name;
+              if (comp.types.includes("administrative_area_level_1")) addrObj.state = comp.long_name;
+              if (comp.types.includes("country")) addrObj.country = comp.long_name;
+            }
+            return {
+              display_name: r.formatted_address,
+              title: r.formatted_address.split(",")[0],
+              subtitle: r.formatted_address.split(",").slice(1).join(", ").trim(),
+              lat: String(loc.lat),
+              lon: String(loc.lng),
+              type: "point",
+              addresstype: "place",
+              address: addrObj,
+              provider: "google"
+            };
+          });
+          return res.json(mapped);
+        }
+      }
+    } catch (gErr: any) {
+      console.warn("[GOOGLE SEARCH] Error calling Google Geocode Search:", gErr.message);
+    }
+  }
+
+  // 2. Ola Maps Autocomplete / Places Search if active and key configured
+  if (activeProvider === "ola" && mapConfig.olaApiKey) {
+    try {
+      const olaUrl = `https://api.olamaps.io/places/v1/autocomplete?input=${encodeURIComponent(correctedQuery)}&api_key=${mapConfig.olaApiKey}`;
+      const olaResp = await fetch(olaUrl);
+      if (olaResp.ok) {
+        const olaData = await olaResp.json();
+        const predictions = olaData.predictions || olaData.results || [];
+        if (predictions.length > 0) {
+          const mapped = predictions.slice(0, 8).map((p: any) => {
+            const geom = p.geometry?.location || {};
+            return {
+              display_name: p.description || p.formatted_address || p.name,
+              title: p.structured_formatting?.main_text || p.name,
+              subtitle: p.structured_formatting?.secondary_text || "",
+              lat: String(geom.lat || p.lat || "17.4483"),
+              lon: String(geom.lng || p.lng || "78.3915"),
+              type: "point",
+              addresstype: "place",
+              provider: "ola"
+            };
+          });
+          return res.json(mapped);
+        }
+      }
+    } catch (olaErr: any) {
+      console.warn("[OLA SEARCH] Error calling Ola Autocomplete:", olaErr.message);
+    }
+  }
 
   try {
     const usersAgent = `TaxiAppLocalApp/3.1 (UserSession_${Math.floor(Math.random() * 1000000)}; contact: iamshrenu@gmail.com)`;
@@ -833,7 +1155,7 @@ export function getTrips(req: Request, res: Response) {
 // Create new trip
 export function createTrip(req: Request, res: Response) {
   const userId = req.body.ownerId;
-  const io = req.app.get("io");
+  const io = req.app.get("io") || getDbIo();
 
   if (req.body.type === 'request' && userId) {
     for (let i = 0; i < globalTrips.length; i++) {
@@ -866,33 +1188,89 @@ export function createTrip(req: Request, res: Response) {
     ? generateIntercityTripId(pickupCity, dropCity)
     : generateLocalTripId(pickupCity);
 
+  const isOffer = req.body.type === 'offer' || req.body.publishIntent === 'offer';
+  const isMarketplacePost = req.body.isMarketplacePost !== undefined 
+    ? req.body.isMarketplacePost 
+    : (isOffer || req.body.bookingFlow === 'marketplace' || req.body.publishIntent === 'request');
+  const bookingFlow = req.body.bookingFlow || (isMarketplacePost ? 'marketplace' : 'search');
+
   const trip = {
     ...req.body,
     id: req.body.id || generatedId,
+    type: req.body.type || (isOffer ? 'offer' : 'request'),
+    publishIntent: req.body.publishIntent || (isOffer ? 'offer' : 'request'),
+    bookingFlow: bookingFlow,
+    isMarketplacePost: isMarketplacePost,
+    status: req.body.status || (req.body.type === 'request' ? 'pending' : (req.body.isInstant ? 'Active' : 'Upcoming')),
     otp: Math.floor(1000 + Math.random() * 9000).toString(), // Secure 4-digit OTP
-    user: globalRiders[userId]?.name || req.body.user || 'Rider',
-    customer: globalRiders[userId] ? { 
+    user: req.body.user || (isOffer ? (globalDrivers[userId]?.name || 'Driver') : (globalRiders[userId]?.name || 'Rider')),
+    customer: isOffer ? undefined : (globalRiders[userId] ? { 
+      id: userId,
       name: globalRiders[userId].name, 
       avatar: globalRiders[userId].avatar || 'https://picsum.photos/seed/rider/100/100',
       rating: 4.8 
-    } : (req.body.customer || { name: 'Rider', avatar: 'https://picsum.photos/seed/rider/100/100', rating: 4.8 }),
+    } : (req.body.customer || { id: userId, name: req.body.user || 'Rider', avatar: 'https://picsum.photos/seed/rider/100/100', rating: 4.8 })),
+    driver: isOffer ? (globalDrivers[userId] ? {
+      id: userId,
+      name: globalDrivers[userId].name,
+      avatar: globalDrivers[userId].avatar || 'https://picsum.photos/seed/driver/100/100',
+      vehicle: globalDrivers[userId].vehicle || req.body.vehicle || 'Vehicle',
+      plate: globalDrivers[userId].plate || req.body.plate || 'PLATE',
+      rating: 4.9
+    } : (req.body.driver || { id: userId, name: req.body.user || 'Driver', vehicle: req.body.vehicle || 'Vehicle', plate: req.body.plate || 'PLATE', rating: 4.9 })) : req.body.driver,
     createdAt: new Date().toISOString()
   };
   globalTrips.push(trip);
   syncTrip(trip).catch(err => console.error("[POSTGRES] Sync new trip error:", err));
 
-  if (io) {
-    io.emit("new_trip_alert", trip); // Notify all drivers about new request
+  // If this trip is linked to an existing marketplace post (e.g. driver accepting a rider request or booking an offer)
+  if (trip.postId) {
+    for (let i = 0; i < globalTrips.length; i++) {
+      if (globalTrips[i].id === trip.postId || String(globalTrips[i].id) === String(trip.postId)) {
+        const parent = globalTrips[i];
+        if (parent.type === 'request' || parent.publishIntent === 'request') {
+          const assignedDriver = trip.driver || {
+            id: trip.driverId || trip.ownerId || userId,
+            name: trip.driver?.name || (globalDrivers[userId]?.name) || 'Driver Partner',
+            rating: trip.driver?.rating || 4.9,
+            vehicle: trip.driver?.vehicle || (globalDrivers[userId]?.vehicle) || 'Swift Dzire',
+            plate: trip.driver?.plate || (globalDrivers[userId]?.plate) || 'MH12 AB 1234',
+            avatar: trip.driver?.avatar || (globalDrivers[userId]?.avatar) || `https://picsum.photos/seed/${trip.postId}/100/100`,
+            phone: trip.driver?.phone || '9988776655'
+          };
+          const updatedParent = {
+            ...parent,
+            status: 'accepted',
+            acceptedBy: trip.driverId || trip.ownerId || userId,
+            acceptedByName: assignedDriver.name,
+            acceptedByAvatar: assignedDriver.avatar,
+            driverId: trip.driverId || trip.ownerId || userId,
+            driver: assignedDriver,
+            updatedAt: new Date().toISOString()
+          };
+          globalTrips[i] = updatedParent;
+          syncTrip(updatedParent).catch(err => console.error("[POSTGRES] Sync accepted request parent error:", err));
+          if (io) {
+            io.emit("trip_update", updatedParent);
+            io.to(`trip_${parent.id}`).emit("trip_update", updatedParent);
+            if (parent.ownerId) io.to(`user_${parent.ownerId}`).emit("active_trip_update", updatedParent);
+          }
+        }
+        break;
+      }
+    }
   }
 
-  // Real-time Web Push broadcast to drivers even if PWA is closed
-  broadcastNotification("Drivers", {
-    title: "🚕 New Ride Request Available!",
-    body: `New pool match request from ${trip.user || "Rider"}. Tap to review and accept.`,
-    url: "/jobs",
-    actionLabel: "Review Request",
-    actionUrl: "/jobs"
-  }).catch(err => console.error("[WEB-PUSH] Error broadcasting new trip to drivers:", err));
+  if (io) {
+    io.emit("new_trip_alert", trip); // Notify all clients about new trip for instant sync
+    io.emit("trip_update", trip); // Broadcast trip_update so all client lists update immediately
+    io.emit("trip_created", trip); // Broadcast trip_created for immediate marketplace addition
+    if (trip.ownerId) io.to(`user_${trip.ownerId}`).emit("active_trip_update", trip);
+    if (trip.riderId) io.to(`user_${trip.riderId}`).emit("active_trip_update", trip);
+    if (trip.driverId) io.to(`user_${trip.driverId}`).emit("active_trip_update", trip);
+  }
+
+  // Avoid unsolicited push notifications during ride creation as requested
 
   return res.status(201).json(trip);
 }
@@ -900,7 +1278,7 @@ export function createTrip(req: Request, res: Response) {
 // Cancel existing trip
 export function cancelTrip(req: Request, res: Response) {
   const { id, userId } = req.body;
-  const io = req.app.get("io");
+  const io = req.app.get("io") || getDbIo();
   let cancelledTrip: any = null;
 
   for (let i = 0; i < globalTrips.length; i++) {
@@ -916,6 +1294,7 @@ export function cancelTrip(req: Request, res: Response) {
     if (io) {
       io.to(`trip_${id}`).emit("trip_update", cancelledTrip);
       io.to(`user_${cancelledTrip.ownerId}`).emit("active_trip_update", cancelledTrip);
+      io.emit("trip_update", cancelledTrip);
     }
 
     // Direct targeted push notifications even when the PWA is closed
@@ -943,7 +1322,7 @@ export function cancelTrip(req: Request, res: Response) {
 // Delete existing trip completely
 export async function deleteTrip(req: Request, res: Response) {
   const id = req.params.id as string;
-  const io = req.app.get("io");
+  const io = req.app.get("io") || getDbIo();
   const idx = globalTrips.findIndex(t => t.id === id);
 
   if (idx !== -1) {
@@ -999,7 +1378,7 @@ export function verifyTripOtp(req: Request, res: Response) {
 // General update trip
 export function updateTrip(req: Request, res: Response) {
   const { id } = req.params;
-  const io = req.app.get("io");
+  const io = req.app.get("io") || getDbIo();
   let updatedTrip: any = null;
   let oldTrip: any = null;
 
@@ -1014,6 +1393,44 @@ export function updateTrip(req: Request, res: Response) {
   }
 
   if (updatedTrip) {
+    // If this updated trip is a booking on a parent marketplace post (e.g. accepted offer or rider acceptance)
+    if (updatedTrip.postId && ["accepted", "active", "scheduled", "started"].includes(updatedTrip.status?.toLowerCase() || "")) {
+      for (let i = 0; i < globalTrips.length; i++) {
+        if (globalTrips[i].id === updatedTrip.postId || String(globalTrips[i].id) === String(updatedTrip.postId)) {
+          const parent = globalTrips[i];
+          if (parent.type === "request" || parent.publishIntent === "request") {
+            const assignedDriver = updatedTrip.driver || {
+              id: updatedTrip.driverId || updatedTrip.acceptedBy || updatedTrip.ownerId,
+              name: updatedTrip.driver?.name || updatedTrip.acceptedByName || "Driver Partner",
+              rating: updatedTrip.driver?.rating || 4.9,
+              vehicle: updatedTrip.driver?.vehicle || "Swift Dzire",
+              plate: updatedTrip.driver?.plate || "MH12 AB 1234",
+              avatar: updatedTrip.driver?.avatar || updatedTrip.acceptedByAvatar || `https://picsum.photos/seed/${updatedTrip.postId}/100/100`,
+              phone: updatedTrip.driver?.phone || "9988776655",
+            };
+            const updatedParent = {
+              ...parent,
+              status: "accepted",
+              acceptedBy: updatedTrip.driverId || updatedTrip.acceptedBy || updatedTrip.ownerId,
+              acceptedByName: assignedDriver.name,
+              acceptedByAvatar: assignedDriver.avatar,
+              driverId: updatedTrip.driverId || updatedTrip.acceptedBy || updatedTrip.ownerId,
+              driver: assignedDriver,
+              updatedAt: new Date().toISOString(),
+            };
+            globalTrips[i] = updatedParent;
+            syncTrip(updatedParent).catch(err => console.error("[POSTGRES] Sync updated parent error:", err));
+            if (io) {
+              io.emit("trip_update", updatedParent);
+              io.to(`trip_${parent.id}`).emit("trip_update", updatedParent);
+              if (parent.ownerId) io.to(`user_${parent.ownerId}`).emit("active_trip_update", updatedParent);
+            }
+          }
+          break;
+        }
+      }
+    }
+
     if (io) {
       io.to(`trip_${id}`).emit("trip_update", updatedTrip);
       io.to(`user_${updatedTrip.ownerId}`).emit("active_trip_update", updatedTrip);

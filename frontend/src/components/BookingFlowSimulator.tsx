@@ -180,7 +180,7 @@ export const BookingFlowSimulator: React.FC<BookingFlowSimulatorProps> = ({
           {/* Pickup Block */}
           <div className="flex items-start gap-4">
             <div className="flex flex-col items-center pt-1.5 w-4 shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full border-2 border-primary bg-white" />
+              <div className="w-2.5 h-2.5 rounded-full border-2 border-rose-500 bg-white" />
               <div className="w-[1.5px] h-6 bg-hairline-soft mt-1" />
             </div>
             <div className="space-y-0.5">
@@ -209,7 +209,7 @@ export const BookingFlowSimulator: React.FC<BookingFlowSimulatorProps> = ({
           <div className="flex items-start gap-4">
             <div className="flex flex-col items-center w-4 shrink-0">
               <div className="w-[1.5px] h-4 bg-hairline-soft mb-1" />
-              <div className="w-2.5 h-2.5 rounded-full bg-secondary" />
+              <div className="w-2.5 h-2.5 rounded-full border-2 border-emerald-600 bg-white" />
             </div>
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">

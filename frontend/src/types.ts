@@ -133,12 +133,17 @@ export interface Trip {
   acceptedBy?: string;
   riderDistance?: string;
   seats?: number;
+  totalSeats?: number;
+  parentTripId?: string;
+  passengerType?: string;
+  bookingIds?: string[];
   onDemand?: boolean;
   isOnDemand?: boolean;
   isBookedByMe?: boolean;
   originType?: string;
   isDirectEngage?: boolean;
   bookingFlow?: string;
+  isMarketplacePost?: boolean;
   source?: string;
   pickupCoords?: [number, number];
   dropCoords?: [number, number];
@@ -148,6 +153,10 @@ export interface Trip {
   user?: string;
   pickupAddress?: string;
   dropAddress?: string;
+  tripType?: string;
+  vehicles?: string[];
+  boardingHub?: string;
+  destinationHub?: string;
 }
 
 export interface RouteData {

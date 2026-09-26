@@ -1,4 +1,3 @@
-export * from "./ActiveTripConflictModal";
 export * from "./AppSettingsModal";
 export * from "./DisplayScaleModal";
 export * from "./DriverPreferencesModal";
@@ -9,6 +8,5 @@ export * from "./RideDetailModal";
 export * from "./RiderKycModal";
 export * from "./SavedPlacesModal";
 export * from "./SupportSafetyModal";
-export * from "./VehicleDetailsModal";
 export * from "./VerificationModal";
 export * from "./WalletModals";

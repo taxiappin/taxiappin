@@ -1,6 +1,6 @@
 {
-  "name": "Taxiapp v90",
-  "description": "Smart ride marketplace for local and intercity travel with automated route detection and seamless booking.",
+  "name": "taxiapp_production_import v4 capacitor",
+  "description": "Imported from GitHub: taxiappin/taxiappin",
   "requestFramePermissions": [
     "geolocation",
     "notifications"

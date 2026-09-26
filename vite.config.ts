@@ -63,8 +63,34 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       target: 'esnext',
       sourcemap: false,
-      chunkSizeWarningLimit: 3000,
+      chunkSizeWarningLimit: 2000,
       minify: 'esbuild',
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('leaflet') || id.includes('react-leaflet')) {
+                return 'vendor-map';
+              }
+              if (id.includes('recharts')) {
+                return 'vendor-charts';
+              }
+              if (id.includes('firebase')) {
+                return 'vendor-firebase';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('motion')) {
+                return 'vendor-motion';
+              }
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+                return 'vendor-react';
+              }
+            }
+          }
+        }
+      }
     },
     resolve: {
       alias: {

@@ -23,7 +23,7 @@ export const RiderRatingDeliveryModal: React.FC<RiderRatingDeliveryModalProps> =
   const [comment, setComment] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  if (!booking) return null;
+  if (!booking || isOpen === false) return null;
 
   const rawName = booking.customer?.name || booking.riderName || booking.name || "Passenger";
   const memberName = rawName
@@ -87,13 +87,15 @@ export const RiderRatingDeliveryModal: React.FC<RiderRatingDeliveryModalProps> =
           {/* Close Button */}
           <button
             type="button"
+            id="btn-close-rider-rating-modal"
             onClick={(e) => {
               e.stopPropagation();
               onClose();
             }}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors z-20"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/50 dark:text-slate-400 dark:hover:text-rose-400 flex items-center justify-center cursor-pointer transition-all z-20 border border-slate-200/60 dark:border-slate-700/60 active:scale-95"
+            title="Cancel & Keep Ride Active (Do Not Drop)"
           >
-            <X size={15} />
+            <X size={16} strokeWidth={2.5} />
           </button>
 
           {/* Green Top Circle Icon */}
@@ -267,6 +269,20 @@ export const RiderRatingDeliveryModal: React.FC<RiderRatingDeliveryModalProps> =
               className="w-full py-1 text-[10px] font-black uppercase tracking-widest transition-colors text-center cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
             >
               SKIP & GO ONLINE
+            </button>
+
+            <button
+              type="button"
+              id="btn-cancel-drop-keep-ride"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="w-full py-2 text-[10px] font-black uppercase tracking-wider text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-all text-center cursor-pointer border border-transparent hover:border-rose-200 dark:hover:border-rose-900/40 mt-0.5 flex items-center justify-center gap-1.5 active:scale-95"
+              title="Mistakenly clicked Dropped? Cancel to keep ride active"
+            >
+              <X size={13} strokeWidth={2.5} />
+              <span>Cancel Drop • Keep Ride Active</span>
             </button>
           </div>
         </motion.div>

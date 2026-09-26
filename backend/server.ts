@@ -59,8 +59,8 @@ async function run() {
             const trip = globalTrips[i];
             const tripDriverId = trip.driverId || trip.acceptedBy;
             const tripStatus = trip.status?.toLowerCase();
-            const isActive = ['accepted', 'active', 'started', 'arriving', 'pickup', 'arrived at pickup', 'live'].includes(tripStatus);
-            if (tripDriverId === id && isActive) {
+            const isNotClosed = !['cancelled', 'completed', 'delivered'].includes(tripStatus);
+            if (tripDriverId === id && isNotClosed) {
               trip.driverCoords = coords;
               if (rotation !== undefined) {
                 trip.driverRotation = rotation;
@@ -71,6 +71,22 @@ async function run() {
             }
           }
         }
+      }
+    });
+
+    socket.on("trip_location_update", (data) => {
+      if (data && data.tripId && data.coords) {
+        io.to(`trip_${data.tripId}`).emit("driver_update", {
+          id: data.driverId || data.tripId,
+          coords: data.coords,
+          rotation: data.rotation,
+          heading: data.rotation,
+        });
+        io.to(`trip_${data.tripId}`).emit("active_trip_update", {
+          id: data.tripId,
+          driverCoords: data.coords,
+          driverRotation: data.rotation,
+        });
       }
     });
 
@@ -124,6 +140,31 @@ async function run() {
       }
       console.log(`[SOCKET SUPPORT CHAT] Message from ${msg.sender} for driver ${targetId}: "${msg.text}"`);
       io.emit("support_chat_message", msg);
+    });
+
+    socket.on("trip_update", (tripData) => {
+      if (!tripData) return;
+      console.log(`[SOCKET] Relaying trip_update for trip ${tripData.id}`);
+      io.emit("trip_update", tripData);
+      if (tripData.id) io.to(`trip_${tripData.id}`).emit("trip_update", tripData);
+      if (tripData.ownerId) io.to(`user_${tripData.ownerId}`).emit("active_trip_update", tripData);
+      if (tripData.riderId) io.to(`user_${tripData.riderId}`).emit("active_trip_update", tripData);
+      if (tripData.driverId) io.to(`user_${tripData.driverId}`).emit("active_trip_update", tripData);
+    });
+
+    socket.on("new_trip_alert", (tripData) => {
+      if (!tripData) return;
+      console.log(`[SOCKET] Relaying new_trip_alert for trip ${tripData.id}`);
+      io.emit("new_trip_alert", tripData);
+      io.emit("trip_update", tripData);
+    });
+
+    socket.on("trip_created", (tripData) => {
+      if (!tripData) return;
+      console.log(`[SOCKET] Relaying trip_created for trip ${tripData.id}`);
+      io.emit("new_trip_alert", tripData);
+      io.emit("trip_update", tripData);
+      io.emit("trip_created", tripData);
     });
 
     socket.on("disconnect", () => {

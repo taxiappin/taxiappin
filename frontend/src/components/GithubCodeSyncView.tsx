@@ -34,9 +34,9 @@ export const GithubCodeSyncView: React.FC<{ setToast: (t: { message: string; typ
 
   const [githubRepo, setGithubRepo] = useState<string>(() => {
     try {
-      return localStorage.getItem('github_repo') || 'my-org/taxi-cab-fullstack';
+      return localStorage.getItem('github_repo') || 'taxiappin/softvares';
     } catch {
-      return 'my-org/taxi-cab-fullstack';
+      return 'taxiappin/softvares';
     }
   });
 

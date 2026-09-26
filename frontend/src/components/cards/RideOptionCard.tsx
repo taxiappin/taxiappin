@@ -105,7 +105,7 @@ export const RideOptionCard: React.FC<RideOptionCardProps> = ({
           <div className="relative pl-6 flex flex-col justify-center min-h-[50px] flex-1">
             <div className="absolute left-[11px] top-1.5 bottom-1.5 w-[1px] border-l border-dashed border-slate-200" />
             <div className="relative mb-3">
-              <div className="absolute -left-[17px] top-1 w-2.5 h-2.5 rounded-full border-2 border-red-500 bg-white z-10" />
+              <div className="absolute -left-[17px] top-1 w-2.5 h-2.5 rounded-full border-2 border-rose-500 bg-white dark:bg-slate-900 z-10" />
               <div className="flex items-center gap-2">
                 <span className="text-[8px] font-normal text-slate-400 w-8 shrink-0">
                   {times.start}
@@ -128,7 +128,7 @@ export const RideOptionCard: React.FC<RideOptionCardProps> = ({
             </div>
 
             <div className="relative">
-              <div className="absolute -left-[17px] top-1 w-2.5 h-2.5 rounded-full bg-slate-900 z-10" />
+              <div className="absolute -left-[17px] top-1 w-2.5 h-2.5 rounded-full border-2 border-emerald-600 bg-white dark:bg-slate-900 z-10" />
               <div className="flex items-center gap-2">
                 <span className="text-[8px] font-normal text-slate-400 w-8 shrink-0">
                   {times.end}
@@ -143,11 +143,11 @@ export const RideOptionCard: React.FC<RideOptionCardProps> = ({
           </div>
 
           <div className="flex flex-col items-end shrink-0 pl-2">
+            <span className="text-[10px] font-normal text-slate-400 mb-0.5">
+              Approx
+            </span>
             <span className="text-[17px] font-display font-semibold text-slate-900 leading-none">
               ₹{option.price}
-            </span>
-            <span className="text-[10px] font-normal text-slate-400 mt-0.5">
-              Approx
             </span>
           </div>
         </div>
@@ -230,7 +230,7 @@ export const RideOptionCard: React.FC<RideOptionCardProps> = ({
                 </span>
               )}
               <div className="flex flex-col items-center gap-0.5 mt-1 shrink-0">
-                <div className="w-1.5 h-1.5 rounded-full border border-red-500 bg-white" />
+                <div className="w-2 h-2 rounded-full border-2 border-rose-500 bg-white dark:bg-slate-900" />
                 <div className="w-[0.5px] h-4 border-l border-dashed border-gray-300" />
               </div>
               <div className="flex flex-col min-w-0">
@@ -261,7 +261,7 @@ export const RideOptionCard: React.FC<RideOptionCardProps> = ({
                 </span>
               )}
               <div className="flex flex-col items-center shrink-0 mt-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-black" />
+                <div className="w-2 h-2 rounded-full border-2 border-emerald-600 bg-white dark:bg-slate-900" />
               </div>
               <div className="flex flex-col min-w-0">
                 <h4 className="text-[12.5px] font-semibold text-ink leading-none truncate">
@@ -273,11 +273,11 @@ export const RideOptionCard: React.FC<RideOptionCardProps> = ({
         </div>
 
         <div className="flex flex-col items-end shrink-0">
+          <span className="text-[10px] font-normal text-mute/60 mb-0.5">
+            Approx
+          </span>
           <span className="text-[18px] font-display font-semibold text-ink leading-none">
             ₹{option.price}
-          </span>
-          <span className="text-[10px] font-normal text-mute/60 mt-0.5">
-            Approx
           </span>
           <div className="flex items-center gap-1 mt-2 text-mute/80">
             <Users size={11} className="shrink-0" />

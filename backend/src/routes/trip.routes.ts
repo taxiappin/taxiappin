@@ -2,6 +2,7 @@ import { Router } from "express";
 import { 
   geocodeReverse,
   geocodeSearch,
+  getDirections,
   login,
   getDrivers,
   updateDriverStatus,
@@ -36,6 +37,7 @@ const router = Router();
 // Geocoding Proxy Routes
 router.get("/geocode/reverse", geocodeReverse);
 router.get("/geocode/search", geocodeSearch);
+router.get("/directions", getDirections);
 
 // Auth login route
 router.post("/login", login);

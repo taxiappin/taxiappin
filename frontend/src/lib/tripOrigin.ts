@@ -184,17 +184,27 @@ export function getTripOriginInfo(
     };
   }
 
+  const isMarketplace =
+    trip.bookingFlow === "marketplace" ||
+    trip.isMarketplacePost === true ||
+    trip.publishIntent === "offer" ||
+    trip.publishIntent === "request" ||
+    trip.type === "request" ||
+    trip.originType === "request_accepted" ||
+    trip.originType === "offer_booked";
+
   const isOnDemandEngage =
-    trip.onDemand === true ||
-    trip.isOnDemand === true ||
-    trip.bookingFlow === "map" ||
-    trip.bookingFlow === "instant" ||
-    trip.bookingFlow === "engage" ||
-    trip.originType === "engage" ||
-    trip.isDirectEngage === true ||
-    trip.source === "engage" ||
-    trip.isInstant === true ||
-    (trip.id && String(trip.id).startsWith("h")); // on-demand ids generated as h<timestamp>
+    !isMarketplace &&
+    (trip.bookingFlow === "map" ||
+      trip.bookingFlow === "engage" ||
+      trip.bookingFlow === "instant" ||
+      trip.bookingFlow === "search" ||
+      trip.originType === "engage" ||
+      trip.isDirectEngage === true ||
+      trip.source === "engage" ||
+      (trip.onDemand === true && trip.bookingFlow !== "marketplace") ||
+      (trip.isOnDemand === true && trip.bookingFlow !== "marketplace") ||
+      (trip.id && String(trip.id).startsWith("h"))); // on-demand ids generated as h<timestamp>
 
   const isDriverMode = mode === "driver";
 
@@ -250,13 +260,34 @@ export function getTripOriginInfo(
       };
     }
 
-    // 2. Rider booked a driver's posted offer in market
+    // 2. Rider request was accepted by a driver
+    const isAcceptedRiderRequest =
+      trip.originType === "request_accepted" ||
+      trip.bookingFlow === "request_accepted" ||
+      ((trip.type === "request" || trip.publishIntent === "request") &&
+        Boolean(trip.driverId && trip.driverId !== "driver")) ||
+      (Boolean(trip.postId || trip.sourcePostId) &&
+        (trip.type === "request" || trip.publishIntent === "request"));
+
+    if (isAcceptedRiderRequest) {
+      return {
+        type: "request_accepted",
+        label: "REQUEST ACCEPTED",
+        badgeBg: "bg-indigo-50",
+        badgeText: "text-indigo-700",
+        badgeBorder: "border-indigo-200/60",
+      };
+    }
+
+    // 3. Rider booked a driver's posted offer in market
     const isBookedOffer =
-      trip.isBookedByMe === true ||
       trip.originType === "offer_booked" ||
+      trip.bookingFlow === "offer_booked" ||
+      trip.isBookedByMe === true ||
       trip.isOffer === true ||
       trip.publishIntent === "offer" ||
-      (trip.postId && (trip.type === "offer" || trip.role === "driver" || trip.driverId));
+      (Boolean(trip.postId || trip.sourcePostId) &&
+        (trip.type === "offer" || trip.publishIntent === "offer" || trip.isOffer === true));
 
     if (isBookedOffer) {
       return {
@@ -268,7 +299,7 @@ export function getTripOriginInfo(
       };
     }
 
-    // 3. Rider requested a ride or trip in market
+    // 4. Rider requested a ride or trip in market
     return {
       type: "request",
       label: "REQUEST",

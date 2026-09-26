@@ -792,6 +792,9 @@ let dbIo: any = null;
 export function setDbIo(io: any) {
   dbIo = io;
 }
+export function getDbIo() {
+  return dbIo;
+}
 
 export function saveConfig(newConfig: any) {
   globalConfig = newConfig;

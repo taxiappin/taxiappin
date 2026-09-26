@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+import compression from "compression";
 import { createServer as createViteServer } from "vite";
 import authRoutes from "./src/routes/auth.routes";
 import adminRoutes from "./src/routes/admin.routes";
@@ -9,9 +10,20 @@ import tripRoutes from "./src/routes/trip.routes";
 import rideRoutes from "./src/routes/ride.routes";
 import walletRoutes from "./src/routes/wallet.routes";
 import pushRoutes from "./src/routes/push.routes";
+import mobileRoutes from "./src/routes/mobile.routes";
 
 export async function createApp() {
   const app = express();
+
+  // High-performance gzip/deflate response compression (reduces payload by 75-80%)
+  app.use(compression({
+    level: 6,
+    threshold: 1024,
+    filter: (req, res) => {
+      if (req.headers["x-no-compression"]) return false;
+      return compression.filter(req, res);
+    }
+  }));
 
   // Observability Logger for API endpoints
   app.use((req, res, next) => {
@@ -142,6 +154,7 @@ Sitemap: ${sitemapUrl}
   // API Routes mount
   app.use("/api/auth", authRoutes);
   app.use("/api/admin", adminRoutes);
+  app.use("/api/mobile", mobileRoutes);
   app.use("/api/push", pushRoutes);
   app.use("/api/rides", rideRoutes);
   app.use("/api/wallet", walletRoutes);
@@ -159,19 +172,29 @@ Sitemap: ${sitemapUrl}
   });
 
   // Vite Single Page Application middleware handling
-  if (process.env.NODE_ENV !== "production") {
+  const distPath = path.join(process.cwd(), "dist");
+  const distIndexPath = path.join(distPath, "index.html");
+  const isProduction = process.env.NODE_ENV === "production" || (!process.env.NODE_ENV && fs.existsSync(distIndexPath));
+
+  if (isProduction && fs.existsSync(distIndexPath)) {
+    console.log("[SERVER] Running in PRODUCTION mode - serving pre-built assets from /dist with gzip/brotli compression");
+    app.use(express.static(distPath, {
+      maxAge: "1y",
+      immutable: true,
+      index: false,
+    }));
+    app.use((req, res) => {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.sendFile(distIndexPath);
+    });
+  } else {
+    console.log("[SERVER] Running in DEVELOPMENT mode - using Vite JIT dev middlewares");
     const vite = await createViteServer({
       root: path.resolve(process.cwd(), "frontend"),
       server: { middlewareMode: true },
       appType: "spa"
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.use((req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
   }
 
   return app;

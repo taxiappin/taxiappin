@@ -8,9 +8,22 @@ import {
 
 let simulationInterval: NodeJS.Timeout | null = null;
 
+export function isSimulationEnabled(): boolean {
+  if (process.env.ENABLE_SIMULATOR === "false" || process.env.SIMULATOR_ENABLED === "false") {
+    return false;
+  }
+  return true;
+}
+
 export function startTripSimulation(io: Server) {
   if (simulationInterval) {
     clearInterval(simulationInterval);
+    simulationInterval = null;
+  }
+
+  if (!isSimulationEnabled()) {
+    console.log("[Simulation] Trip simulation is disabled by environment configuration (ENABLE_SIMULATOR=false)");
+    return;
   }
 
   simulationInterval = setInterval(() => {

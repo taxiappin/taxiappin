@@ -220,7 +220,7 @@ export const RideDetailModal: React.FC<RideDetailModalProps> = ({
 
                     {/* Drop Pin & Time */}
                     <div className="relative pl-7 pt-4">
-                      <div className="absolute left-[3px] top-[10px] w-[10px] h-[10px] rounded-full bg-gray-900" />
+                      <div className="absolute left-[3px] top-[10px] w-[10px] h-[10px] rounded-full border-2 border-emerald-600 bg-white" />
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black bg-slate-50 border border-gray-150 px-2.5 py-0.5 rounded-lg text-gray-900 leading-none">
                           {computedToTime}

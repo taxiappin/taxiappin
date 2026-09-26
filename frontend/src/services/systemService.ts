@@ -133,9 +133,9 @@ export const notificationService = {
     return permission === 'granted';
   },
 
-  async show(title: string, body: string, icon = 'https://cdn-icons-png.flaticon.com/512/3082/3082331.png') {
+  async show(title: string, body: string, icon = 'https://cdn-icons-png.flaticon.com/512/3082/3082331.png', threadId?: string) {
     if (!('Notification' in window)) return;
-    
+
     if (Notification.permission === 'granted') {
       try {
         // Android Chrome requires ServiceWorker for reliable background notifications
@@ -146,34 +146,56 @@ export const notificationService = {
               body,
               icon,
               badge: icon,
-              vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40], 
-              tag: 'ride-buddy-notification', 
+              vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40],
+              tag: 'ride-buddy-notification',
               renotify: true,
               requireInteraction: true,
               silent: false,
               data: {
-                url: window.location.origin
+                url: window.location.origin,
+                threadId,
               }
             } as any);
             return;
           }
         }
-        
+
         // Fallback for when ServiceWorker isn't ready or for desktop
-        new Notification(title, {
+        const desktopNotif = new Notification(title, {
           body,
           icon,
           badge: icon,
-          tag: 'ride-buddy-notification'
-        });
+          tag: 'ride-buddy-notification',
+          renotify: true,
+        } as any);
+
+        desktopNotif.onclick = () => {
+          window.focus();
+          try {
+            window.dispatchEvent(new CustomEvent('taxiapp_open_chat', { detail: { title, body, threadId } }));
+          } catch (e) {}
+        };
       } catch (e) {
         console.warn('Notification failed, falling back to window.Notification', e);
         try {
-          new Notification(title, { body, icon });
+          const fallbackNotif = new Notification(title, { body, icon });
+          fallbackNotif.onclick = () => {
+            window.focus();
+            try {
+              window.dispatchEvent(new CustomEvent('taxiapp_open_chat', { detail: { title, body, threadId } }));
+            } catch (err) {}
+          };
         } catch (innerErr) {
           console.error('All notification methods failed', innerErr);
         }
       }
+    } else if (Notification.permission === 'default') {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          notificationService.show(title, body, icon, threadId);
+        }
+      } catch (err) {}
     }
   }
 };

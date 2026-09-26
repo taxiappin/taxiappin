@@ -120,6 +120,22 @@ function calculateHeading(from: [number, number], to: [number, number]): number 
   return (angle + 360) % 360;
 }
 
+// Helper to calculate tangent road bearing along route closest to given coordinate
+function getRoadBearingAtPoint(pos: [number, number], route: [number, number][]): number {
+  if (!route || route.length < 2) return 0;
+  let minDistance = Infinity;
+  let bestIdx = 0;
+  for (let i = 0; i < route.length - 1; i++) {
+    const d = getHaversineDistance(pos[0], pos[1], route[i][0], route[i][1]);
+    if (d < minDistance) {
+      minDistance = d;
+      bestIdx = i;
+    }
+  }
+  const nextIdx = Math.min(bestIdx + 1, route.length - 1);
+  return calculateHeading(route[bestIdx], route[nextIdx]);
+}
+
 // Dynamic Map Auto-Pan & Vehicle Tracking component
 const DynamicMapTracker = ({
   pickupCoords,
@@ -256,6 +272,17 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [routePath, setRoutePath] = useState<[number, number][]>([]);
+  const [driverToPickupRoute, setDriverToPickupRoute] = useState<[number, number][]>([]);
+  const driverToPickupRouteRef = useRef<[number, number][]>([]);
+  const routePathRef = useRef<[number, number][]>([]);
+
+  useEffect(() => {
+    driverToPickupRouteRef.current = driverToPickupRoute;
+  }, [driverToPickupRoute]);
+  useEffect(() => {
+    routePathRef.current = routePath;
+  }, [routePath]);
+
   const [copied, setCopied] = useState(false);
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
 
@@ -302,7 +329,15 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
 
     const startCoords: [number, number] = currentPosRef.current || targetCoords;
     const initialRot = currentRotRef.current;
-    const computedHeading = targetHeading !== undefined ? targetHeading : calculateHeading(startCoords, targetCoords);
+    let computedHeading = targetHeading;
+    if (computedHeading === undefined) {
+      const activeRoute = driverToPickupRouteRef.current.length > 1 ? driverToPickupRouteRef.current : routePathRef.current;
+      if (activeRoute && activeRoute.length > 1) {
+        computedHeading = getRoadBearingAtPoint(targetCoords, activeRoute);
+      } else {
+        computedHeading = calculateHeading(startCoords, targetCoords);
+      }
+    }
     const destinationRot = calcShortestAngle(computedHeading, initialRot);
 
     const startTime = performance.now();
@@ -331,127 +366,95 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
     animFrameRef.current = requestAnimationFrame(frameStep);
   }, []);
 
-  // Generate sequence of points for live vehicle movement based on trip status:
-  // Phase 1 (Accepted/Arriving): Driver starting location -> Pickup (A)
-  // Phase 2 (Started/Active): Pickup (A) -> Destination (B)
+  // Real-Time GPS Tracking State
+  const [lastGpsUpdate, setLastGpsUpdate] = useState<number>(Date.now());
+  const [isGpsLive, setIsGpsLive] = useState<boolean>(true);
+
+  // Set initial vehicle location directly from driver's actual GPS coordinates
   useEffect(() => {
     if (!trip) return;
     const pCoords: [number, number] = trip.pickupCoords || [trip.pickup?.lat || 17.4474, trip.pickup?.lng || 78.3762];
-    const dCoords: [number, number] = trip.dropCoords || [trip.drop?.lat || 17.2403, trip.drop?.lng || 78.4294];
-    const drCoords: [number, number] = trip.driverCoords || (trip.driver?.lat && trip.driver?.lng ? [trip.driver.lat, trip.driver.lng] : null) || [pCoords[0] + 0.005, pCoords[1] - 0.005];
+    const drCoords: [number, number] =
+      trip.driverCoords ||
+      (trip.driver?.lat && trip.driver?.lng ? [trip.driver.lat, trip.driver.lng] : null) ||
+      [pCoords[0] + 0.005, pCoords[1] - 0.005];
 
-    const statusLower = (trip.status || "").toLowerCase();
-    const subStatusLower = (trip.subStatus || "").toLowerCase();
+    if (!vehiclePos && drCoords && !isNaN(drCoords[0]) && !isNaN(drCoords[1])) {
+      setVehiclePos(drCoords);
+      setVehicleRotation(calculateHeading(drCoords, pCoords));
+    }
+  }, [trip?.driverCoords, trip?.driver?.lat, trip?.driver?.lng, vehiclePos]);
 
+  // Dynamically compute real-time proximity (distance & ETA) based on actual driver position
+  const liveProximity = React.useMemo(() => {
+    const pCoords: [number, number] = trip?.pickupCoords || [trip?.pickup?.lat || 17.4474, trip?.pickup?.lng || 78.3762];
+    const dCoords: [number, number] = trip?.dropCoords || [trip?.drop?.lat || 17.2403, trip?.drop?.lng || 78.4294];
+    const curPos =
+      vehiclePos ||
+      trip?.driverCoords ||
+      (trip?.driver?.lat && trip?.driver?.lng ? [trip.driver.lat, trip.driver.lng] : null) ||
+      [pCoords[0] + 0.005, pCoords[1] - 0.005];
+
+    const statusLower = (trip?.status || "").toLowerCase();
     const isTripStarted =
       statusLower === "started" ||
       statusLower === "active" ||
       statusLower === "in-progress" ||
-      statusLower === "live" ||
-      subStatusLower === "started";
+      statusLower === "live";
+    const target = isTripStarted ? dCoords : pCoords;
 
-    const isTripCompleted =
-      statusLower === "completed" ||
-      statusLower === "delivered" ||
-      statusLower === "arrived";
-
-    if (isTripCompleted) {
-      setVehiclePos(dCoords);
-      setPathSequence([]);
-      return;
+    if (!curPos || !target || isNaN(curPos[0]) || isNaN(target[0])) {
+      return {
+        distanceKm: "0.8 km",
+        etaMinutes: 3,
+        text: "0.8 km away • ~3 mins",
+        isArrived: false,
+        statusLabel: isTripStarted ? "En route to destination" : "Driver is approaching pickup",
+      };
     }
 
-    const rawSeq: [number, number][] = [];
-
-    if (isTripStarted) {
-      // Vehicle travels from Pickup A to Destination B along the turn-by-turn route path
-      if (routePath && routePath.length > 1) {
-        rawSeq.push(...routePath);
-      } else {
-        const steps = 30;
-        for (let i = 0; i <= steps; i++) {
-          const r = i / steps;
-          rawSeq.push([
-            pCoords[0] + (dCoords[0] - pCoords[0]) * r,
-            pCoords[1] + (dCoords[1] - pCoords[1]) * r,
-          ]);
-        }
-      }
-    } else {
-      // Driver approaches Pickup A from their starting position
-      const steps = 25;
-      for (let i = 0; i <= steps; i++) {
-        const r = i / steps;
-        rawSeq.push([
-          drCoords[0] + (pCoords[0] - drCoords[0]) * r,
-          drCoords[1] + (pCoords[1] - drCoords[1]) * r,
-        ]);
-      }
-    }
-
-    // High-density sub-step interpolation for 60fps Uber-grade vehicle gliding
-    const denseSeq: [number, number][] = [];
-    for (let k = 0; k < rawSeq.length - 1; k++) {
-      const ptA = rawSeq[k];
-      const ptB = rawSeq[k + 1];
-      const subCount = 4;
-      for (let s = 0; s < subCount; s++) {
-        const r = s / subCount;
-        denseSeq.push([
-          ptA[0] + (ptB[0] - ptA[0]) * r,
-          ptA[1] + (ptB[1] - ptA[1]) * r,
-        ]);
-      }
-    }
-    if (rawSeq.length > 0) denseSeq.push(rawSeq[rawSeq.length - 1]);
-
-    setPathSequence(denseSeq);
-    if (!vehiclePos && denseSeq.length > 0) {
-      setVehiclePos(denseSeq[0]);
-      if (denseSeq.length > 1) {
-        setVehicleRotation(calculateHeading(denseSeq[0], denseSeq[1]));
-      }
-    }
-  }, [trip?.status, trip?.subStatus, trip?.driverCoords, routePath]);
-
-  // Realistic Route Traversal Loop (Active when real driver updates are between GPS pings)
-  useEffect(() => {
-    if (pathSequence.length < 2) return;
-    const isCancelled = (trip?.status || "").toLowerCase() === "cancelled";
-    if (isCancelled) return;
-
-    pathStepIndexRef.current = 0;
-
-    const interval = setInterval(() => {
-      // If real driver GPS updates are active, let real GPS govern position
-      if (isRealGpsActiveRef.current) return;
-
-      if (pathStepIndexRef.current < pathSequence.length - 1) {
-        pathStepIndexRef.current += 1;
-        const curr = pathSequence[pathStepIndexRef.current];
-        const next = pathSequence[Math.min(pathStepIndexRef.current + 1, pathSequence.length - 1)];
-
-        setVehiclePos(curr);
-        if (curr && next) {
-          const newHeading = calculateHeading(curr, next);
-          setVehicleRotation((prev) => calcShortestAngle(newHeading, prev));
-        }
-      } else {
-        // Arrived at destination / pickup point: hold position smoothly without looping back
-        clearInterval(interval);
-      }
-    }, 600);
-
-    return () => clearInterval(interval);
-  }, [pathSequence, trip?.status]);
+    const distKm = getHaversineDistance(curPos[0], curPos[1], target[0], target[1]);
+    const displayDist = (distKm < 0.1 ? 0.1 : distKm).toFixed(1);
+    const estMins = Math.max(1, Math.round((distKm / 26) * 60));
+    return {
+      distanceKm: `${displayDist} km`,
+      etaMinutes: estMins,
+      text: `${displayDist} km away • ~${estMins} min${estMins > 1 ? "s" : ""}`,
+      isArrived: distKm < 0.08,
+      statusLabel: isTripStarted
+        ? distKm < 0.1
+          ? "Arrived at destination"
+          : `En route to destination (${displayDist} km)`
+        : distKm < 0.1
+        ? "Driver has arrived at pickup"
+        : `Driver is approaching (${displayDist} km away)`,
+    };
+  }, [vehiclePos, trip?.pickupCoords, trip?.pickup, trip?.dropCoords, trip?.drop, trip?.driverCoords, trip?.driver, trip?.status]);
 
   const handleDeliverySubmitInTracker = async (bookingId: string, rating: number, feedback: string) => {
     try {
+      // Record review ID in localStorage immediately to prevent duplicate review modal in parent
+      try {
+        const saved = localStorage.getItem("ride-buddy-reviewed-trip-ids");
+        const list = saved ? JSON.parse(saved) : [];
+        if (!list.includes(bookingId)) {
+          list.push(bookingId);
+          localStorage.setItem("ride-buddy-reviewed-trip-ids", JSON.stringify(list));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
       await fetch(`/api/trips/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: "delivered",
+          subStatus: "dropped",
+          isDriverFinished: true,
+          isDriverReviewed: true,
+          isReviewed: true,
+          isFinished: true,
           driverRating: rating,
           driverFeedback: feedback,
         }),
@@ -459,10 +462,15 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
       setTrip((prev: any) => ({
         ...prev,
         status: "delivered",
+        subStatus: "dropped",
+        isDriverFinished: true,
+        isDriverReviewed: true,
+        isReviewed: true,
+        isFinished: true,
         driverRating: rating,
         driverFeedback: feedback,
       }));
-      showTrackingNotification(`Rider marked delivered! Rating ⭐ ${rating} saved.`);
+      showTrackingNotification(`Rider marked dropped & review saved! Rating ⭐ ${rating}`);
     } catch (err) {
       showTrackingNotification("Failed to save rider rating.");
     }
@@ -491,7 +499,7 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
       return {
         title: "Searching Match",
         desc: "Matching with travel companions...",
-        badgeColor: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+        badgeColor: "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs",
         isStarted: false,
       };
     }
@@ -499,7 +507,7 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
       return {
         title: "Trip Cancelled",
         desc: "This journey was cancelled.",
-        badgeColor: "bg-red-500/10 text-red-500 border-red-500/20",
+        badgeColor: "bg-rose-500 text-white border-rose-600 font-black shadow-xs",
         isStarted: false,
       };
     }
@@ -507,7 +515,7 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
       return {
         title: "Ride Completed",
         desc: "Rider reached destination safely!",
-        badgeColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+        badgeColor: "bg-emerald-600 text-white border-emerald-700 font-black shadow-xs",
         isStarted: true,
       };
     }
@@ -515,7 +523,7 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
       return {
         title: "Driver Arrived",
         desc: "Driver is waiting at the pickup spot.",
-        badgeColor: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+        badgeColor: "bg-indigo-600 text-white border-indigo-700 font-black shadow-xs",
         isStarted: false,
       };
     }
@@ -523,7 +531,7 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
       return {
         title: "Driver Arriving",
         desc: "Driver is picking up the passenger.",
-        badgeColor: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+        badgeColor: "bg-blue-600 text-white border-blue-700 font-black shadow-xs",
         isStarted: false,
       };
     }
@@ -531,7 +539,7 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
       return {
         title: "Ride in Progress",
         desc: "En route to dropoff destination safely.",
-        badgeColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+        badgeColor: "bg-emerald-600 text-white border-emerald-700 font-black shadow-xs",
         isStarted: true,
       };
     }
@@ -539,7 +547,7 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
     return {
       title: "Active Journey",
       desc: "Following journey updates in real-time.",
-      badgeColor: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      badgeColor: "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs",
       isStarted: false,
     };
   };
@@ -632,10 +640,12 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
     // Build route path
     const pCoords = targetTrip.pickupCoords || [targetTrip.pickup?.lat || 17.4474, targetTrip.pickup?.lng || 78.3762];
     const dCoords = targetTrip.dropCoords || [targetTrip.drop?.lat || 17.2403, targetTrip.drop?.lng || 78.4294];
+    const drCoords = targetTrip.driverCoords || (targetTrip.driver?.lat && targetTrip.driver?.lng ? [targetTrip.driver.lat, targetTrip.driver.lng] : null) || [pCoords[0] + 0.005, pCoords[1] - 0.005];
+
     if (pCoords[0] && dCoords[0]) {
       try {
         const route = await routingService.getRoute(pCoords, dCoords);
-        if (route && route.coordinates) {
+        if (route && route.coordinates && route.coordinates.length > 1) {
           setRoutePath(route.coordinates);
         }
       } catch (rErr) {
@@ -643,8 +653,35 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
         setRoutePath([pCoords, dCoords]);
       }
     }
+
+    if (drCoords && drCoords[0] && pCoords[0]) {
+      try {
+        const dRoute = await routingService.getRoute(drCoords, pCoords);
+        if (dRoute && dRoute.coordinates && dRoute.coordinates.length > 1) {
+          setDriverToPickupRoute(dRoute.coordinates);
+        }
+      } catch (drErr) {
+        setDriverToPickupRoute([drCoords, pCoords]);
+      }
+    }
     setLoading(false);
   };
+
+  // Keep driverToPickupRoute updated with real road paths whenever driver or pickup coords update
+  useEffect(() => {
+    if (!trip) return;
+    const pCoords = trip.pickupCoords || [trip.pickup?.lat || 17.4474, trip.pickup?.lng || 78.3762];
+    const curDriver = vehiclePos || trip.driverCoords || (trip.driver?.lat && trip.driver?.lng ? [trip.driver.lat, trip.driver.lng] : null);
+    if (curDriver && pCoords && !isNaN(curDriver[0]) && !isNaN(pCoords[0])) {
+      let active = true;
+      routingService.getRoute(curDriver, pCoords).then((res) => {
+        if (active && res && res.coordinates && res.coordinates.length > 1) {
+          setDriverToPickupRoute(res.coordinates);
+        }
+      }).catch(() => {});
+      return () => { active = false; };
+    }
+  }, [trip?.id, trip?.driver?.lat, trip?.driver?.lng, trip?.driverCoords?.[0], trip?.driverCoords?.[1]]);
 
   // Setup Socket.io listening and join the specific trip room
   useEffect(() => {
@@ -653,8 +690,8 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
     // Establish WebSocket Sync
     if (!socketRef.current) {
       socketRef.current = io(window.location.origin, {
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
+        reconnectionAttempts: 15,
+        reconnectionDelay: 1500,
       });
     }
 
@@ -663,15 +700,21 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
     socket.on("connect", () => {
       console.log("[TRACKING SOCKET] Connected to tracking server");
       socket.emit("join_trip_room", tripId);
+      setIsGpsLive(true);
+    });
+
+    socket.on("disconnect", () => {
+      setIsGpsLive(false);
     });
 
     // Real-time GPS movement broadcast from Driver's device
     socket.on("driver_update", (d: any) => {
       if (d && Array.isArray(d.coords) && d.coords.length >= 2 && !isNaN(d.coords[0]) && !isNaN(d.coords[1])) {
-        // Verify driver belongs to this trip
         const assignedDriverId = trip?.driver?.id || trip?.acceptedBy || trip?.driverId;
-        if (!assignedDriverId || d.id === assignedDriverId || d.driverId === assignedDriverId) {
-          animateToPosition(d.coords, typeof d.rotation === "number" ? d.rotation : d.heading, 1200);
+        if (!assignedDriverId || d.id === assignedDriverId || d.driverId === assignedDriverId || d.id === tripId) {
+          animateToPosition(d.coords, typeof d.rotation === "number" ? d.rotation : d.heading, 1000);
+          setLastGpsUpdate(Date.now());
+          setIsGpsLive(true);
         }
       }
     });
@@ -679,27 +722,89 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
     socket.on("active_trip_update", (updatedTrip: any) => {
       if (updatedTrip && (updatedTrip.id === tripId || updatedTrip._id === tripId)) {
         if (Array.isArray(updatedTrip.driverCoords) && !isNaN(updatedTrip.driverCoords[0]) && !isNaN(updatedTrip.driverCoords[1])) {
-          animateToPosition(updatedTrip.driverCoords, updatedTrip.driverRotation, 1200);
+          animateToPosition(updatedTrip.driverCoords, updatedTrip.driverRotation, 1000);
+          setLastGpsUpdate(Date.now());
+          setIsGpsLive(true);
         }
       }
     });
 
     socket.on("trip_update", (updatedTrip: any) => {
-      if (updatedTrip.id === tripId) {
+      if (updatedTrip && (updatedTrip.id === tripId || updatedTrip._id === tripId)) {
         if (Array.isArray(updatedTrip.driverCoords) && !isNaN(updatedTrip.driverCoords[0]) && !isNaN(updatedTrip.driverCoords[1])) {
-          animateToPosition(updatedTrip.driverCoords, updatedTrip.driverRotation, 1200);
+          animateToPosition(updatedTrip.driverCoords, updatedTrip.driverRotation, 1000);
+          setLastGpsUpdate(Date.now());
+          setIsGpsLive(true);
         }
         setTrip((prev: any) => {
           if (prev && prev.status !== updatedTrip.status) {
             const display = getStatusDisplay(updatedTrip.status, updatedTrip.subStatus);
             showTrackingNotification(`Ride Status: ${display.title}`);
           }
-          return updatedTrip;
+          return { ...prev, ...updatedTrip };
         });
       }
     });
 
+    // Real-time polling fallback: ensures database updates sync every 3 seconds
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/trips");
+        if (res.ok) {
+          const allTrips = await res.json();
+          const target = allTrips.find((t: any) => t.id === tripId || t._id === tripId);
+          if (target) {
+            if (target.driverCoords && Array.isArray(target.driverCoords) && !isNaN(target.driverCoords[0])) {
+              animateToPosition(target.driverCoords, target.driverRotation, 1000);
+              setLastGpsUpdate(Date.now());
+              setIsGpsLive(true);
+            }
+            setTrip((prev: any) => ({ ...prev, ...target }));
+          }
+        }
+      } catch (e) {}
+    }, 3000);
+
+    // Watch real device GPS if this user is the driver
+    let watchId: number | null = null;
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      try {
+        watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const heading = pos.coords.heading || 0;
+            setLastGpsUpdate(Date.now());
+            setIsGpsLive(true);
+
+            const currentUserId = localStorage.getItem("ride-buddy-user-id");
+            const tripDriverId = trip?.driver?.id || trip?.acceptedBy || trip?.driverId;
+            if (currentUserId && tripDriverId && String(currentUserId) === String(tripDriverId)) {
+              socket.emit("driver_status_update", {
+                id: currentUserId,
+                status: "online",
+                coords: [lat, lng],
+                rotation: heading,
+              });
+              socket.emit("trip_location_update", {
+                tripId,
+                driverId: currentUserId,
+                coords: [lat, lng],
+                rotation: heading,
+              });
+            }
+          },
+          (err) => console.warn("[GPS] Geolocation watch error:", err.message),
+          { enableHighAccuracy: true, maximumAge: 1500, timeout: 8000 }
+        );
+      } catch (err) {}
+    }
+
     return () => {
+      clearInterval(pollInterval);
+      if (watchId !== null && typeof navigator !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
       socket.disconnect();
     };
   }, [tripId, trip?.driver?.id, trip?.acceptedBy, trip?.driverId, animateToPosition]);
@@ -1022,408 +1127,273 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
         </div>
       </header>
 
-      {/* Map Container with Maximise/Minimise and Recenter */}
-      <div className={`relative bg-surface-soft transition-all duration-300 ${isMapExpanded ? "flex-1 h-full" : "h-[42vh] sm:h-[48vh] shrink-0"}`}>
-        <MapContainer
-          center={drCoords && !isNaN(drCoords[0]) ? drCoords : pCoords && !isNaN(pCoords[0]) ? pCoords : [17.385, 78.4867]}
-          zoom={14}
-          className="h-full w-full"
-          zoomControl={false}
-          preferCanvas={false}
+      {/* 50/50 Split View Container: Half Map on Top, Half Driver Details on Bottom */}
+      <div className="flex-1 min-h-0 w-full flex flex-col overflow-hidden relative">
+        {/* Map Section (Top 50%) */}
+        <div
+          className={
+            isMapExpanded
+              ? "h-full w-full flex-1 relative bg-surface-soft transition-all duration-300 min-h-0"
+              : "h-1/2 w-full flex-1 basis-1/2 relative bg-surface-soft transition-all duration-300 min-h-0"
+          }
         >
-          <TileLayer
-            url={getResolvedTileUrl(config.map)}
-            className={getTileLayerClassName(config.map)}
-            subdomains="abc"
-            maxZoom={19}
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-
-          <DynamicMapTracker
-            pickupCoords={pCoords}
-            dropCoords={dCoords}
-            driverCoords={drCoords}
-            vehiclePos={vehiclePos || drCoords}
-            isLoaded={true}
-            isAutoTracking={isAutoTracking}
-            onUserInteract={() => setIsAutoTracking(false)}
-          />
-
-          {/* Leg 1: Driver Start to Pickup Point Polyline */}
-          {drCoords && pCoords && !isNaN(drCoords[0]) && !isNaN(pCoords[0]) && (
-            <Polyline
-              positions={[drCoords, pCoords]}
-              color="#3b82f6"
-              weight={4}
-              dashArray="6, 6"
-              opacity={0.85}
-            />
-          )}
-
-          {/* Leg 2: Pickup to Destination Point Polyline */}
-          {routePath.length > 1 ? (
-            <Polyline
-              positions={routePath}
-              color={config.map?.riderToDestColor || config.map?.roadHighlightColor || "#FACC15"}
-              weight={config.map?.roadHighlightWeight ?? 5}
-              opacity={config.map?.roadHighlightOpacity ?? 0.9}
-            />
-          ) : pCoords && dCoords && !isNaN(pCoords[0]) && !isNaN(dCoords[0]) && (
-            <Polyline
-              positions={[pCoords, dCoords]}
-              color="#FACC15"
-              weight={5}
-              opacity={0.9}
-            />
-          )}
-
-          {/* 1. Driver Start Point Marker */}
-          {drCoords && !isNaN(drCoords[0]) && !isNaN(drCoords[1]) && (
-            <Marker position={drCoords} icon={getStartIcon()}>
-              <Popup>
-                <div className="p-1 font-sans text-xs">
-                  <p className="font-extrabold text-blue-600 flex items-center gap-1">📍 Driver Start Point</p>
-                  <p className="text-[10px] text-gray-700 font-bold mt-0.5">{driverStartAddr}</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-
-          {/* 2. Pickup Point Marker (A) */}
-          {pCoords && !isNaN(pCoords[0]) && (
-            <Marker position={pCoords} icon={getPickupIcon()}>
-              <Popup>
-                <div className="p-1 font-sans text-xs">
-                  <p className="font-extrabold text-emerald-600 flex items-center gap-1">🟢 Rider Pickup Point (A)</p>
-                  <p className="text-[10px] text-gray-700 font-bold mt-0.5">{pickupAddr}</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-
-          {/* 3. Destination Point Marker (B) */}
-          {dCoords && !isNaN(dCoords[0]) && (
-            <Marker position={dCoords} icon={getDropIcon()}>
-              <Popup>
-                <div className="p-1 font-sans text-xs">
-                  <p className="font-extrabold text-rose-600 flex items-center gap-1">🔴 Rider Destination Point (B)</p>
-                  <p className="text-[10px] text-gray-700 font-bold mt-0.5">{dropoffAddr}</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-
-          {/* 4. LIVE ANIMATED VEHICLE MARKER */}
-          {(vehiclePos || drCoords) && !isNaN((vehiclePos || drCoords)![0]) && (
-            <Marker
-              position={vehiclePos || drCoords}
-              icon={getVehicleMarkerIcon(
-                trip.driver?.type || trip.rideType || "CAR",
-                vehicleRotation
-              )}
-              zIndexOffset={3000}
-            >
-              <Popup>
-                <div className="p-1 font-sans text-xs">
-                  <p className="font-extrabold text-amber-600 flex items-center gap-1">🚗 Assigned Live Vehicle</p>
-                  <p className="text-[10px] text-gray-700 font-bold mt-0.5">{trip.driver?.name || "Driver"} &bull; {trip.driver?.plate || "TS 08 ET 4920"}</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-        </MapContainer>
-
-        {/* Map Floating Controls: Maximize/Minimize & Recenter Side-by-Side */}
-        <div className="absolute bottom-3 right-3 z-[999] flex items-center gap-2.5">
-          <button
-            onClick={() => setIsMapExpanded(!isMapExpanded)}
-            className="w-10 h-10 bg-white text-secondary border border-hairline-soft rounded-full shadow-lg flex items-center justify-center backdrop-blur-md active:scale-90 transition-all cursor-pointer hover:border-amber-400"
-            title={isMapExpanded ? "Minimise Map View" : "Maximise Map View"}
-            aria-label={isMapExpanded ? "Minimise Map View" : "Maximise Map View"}
+          <MapContainer
+            center={drCoords && !isNaN(drCoords[0]) ? drCoords : pCoords && !isNaN(pCoords[0]) ? pCoords : [17.385, 78.4867]}
+            zoom={14}
+            className="h-full w-full"
+            zoomControl={false}
+            preferCanvas={false}
           >
-            {isMapExpanded ? (
-              <Minimize2 size={18} className="stroke-[2.5] text-secondary" />
-            ) : (
-              <Maximize2 size={18} className="stroke-[2.5] text-secondary" />
+            <TileLayer
+              url={getResolvedTileUrl(config.map)}
+              className={getTileLayerClassName(config.map)}
+              subdomains="abc"
+              maxZoom={19}
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+
+            <DynamicMapTracker
+              pickupCoords={pCoords}
+              dropCoords={dCoords}
+              driverCoords={drCoords}
+              vehiclePos={vehiclePos || drCoords}
+              isLoaded={true}
+              isAutoTracking={isAutoTracking}
+              onUserInteract={() => setIsAutoTracking(false)}
+            />
+
+            {/* Real-Time Road Navigation Line: Driver/Vehicle to Pickup (Clean earlier route line weight) */}
+            {driverToPickupRoute.length > 1 ? (
+              <Polyline
+                positions={driverToPickupRoute}
+                color="#3b82f6"
+                weight={3.5}
+                opacity={0.85}
+              />
+            ) : drCoords && pCoords && !isNaN(drCoords[0]) && !isNaN(pCoords[0]) ? (
+              <Polyline
+                positions={[drCoords, pCoords]}
+                color="#3b82f6"
+                weight={3.5}
+                opacity={0.85}
+              />
+            ) : null}
+
+            {/* Leg 2: Real-time Road Line from Pickup to Dropoff */}
+            {routePath.length > 1 ? (
+              <Polyline
+                positions={routePath}
+                color={config.map?.riderToDestColor || config.map?.roadHighlightColor || "#FACC15"}
+                weight={config.map?.roadHighlightWeight ?? 3.5}
+                opacity={config.map?.roadHighlightOpacity ?? 0.9}
+              />
+            ) : pCoords && dCoords && !isNaN(pCoords[0]) && !isNaN(dCoords[0]) ? (
+              <Polyline
+                positions={[pCoords, dCoords]}
+                color={config.map?.riderToDestColor || config.map?.roadHighlightColor || "#FACC15"}
+                weight={3.5}
+                opacity={0.9}
+              />
+            ) : null}
+
+            {/* 1. Driver Start Point Marker */}
+            {drCoords && !isNaN(drCoords[0]) && !isNaN(drCoords[1]) && (
+              <Marker position={drCoords} icon={getStartIcon()}>
+                <Popup>
+                  <div className="p-1 font-sans text-xs">
+                    <p className="font-extrabold text-blue-600 flex items-center gap-1">📍 Driver Start Point</p>
+                    <p className="text-[10px] text-gray-700 font-bold mt-0.5">{driverStartAddr}</p>
+                  </div>
+                </Popup>
+              </Marker>
             )}
-          </button>
 
-          <button
-            onClick={() => {
-              const mapEl = document.querySelector(".leaflet-container");
-              const activeVehiclePos = vehiclePos || drCoords;
-              if (mapEl && (mapEl as any)._leaflet_map) {
-                const mapObj = (mapEl as any)._leaflet_map;
-                if (activeVehiclePos && !isNaN(activeVehiclePos[0])) {
-                  mapObj.panTo(activeVehiclePos, { animate: true, duration: 0.5 });
-                } else if (pCoords && dCoords) {
-                  const bounds = L.latLngBounds([pCoords, dCoords]);
-                  mapObj.fitBounds(bounds, { padding: [50, 50] });
+            {/* 2. Pickup Point Marker (A) */}
+            {pCoords && !isNaN(pCoords[0]) && (
+              <Marker position={pCoords} icon={getPickupIcon()}>
+                <Popup>
+                  <div className="p-1 font-sans text-xs">
+                    <p className="font-extrabold text-emerald-600 flex items-center gap-1">🟢 Rider Pickup Point (A)</p>
+                    <p className="text-[10px] text-gray-700 font-bold mt-0.5">{pickupAddr}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+
+            {/* 3. Destination Point Marker (B) */}
+            {dCoords && !isNaN(dCoords[0]) && (
+              <Marker position={dCoords} icon={getDropIcon()}>
+                <Popup>
+                  <div className="p-1 font-sans text-xs">
+                    <p className="font-extrabold text-rose-600 flex items-center gap-1">🔴 Rider Destination Point (B)</p>
+                    <p className="text-[10px] text-gray-700 font-bold mt-0.5">{dropoffAddr}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+
+            {/* 4. LIVE REAL-TIME VEHICLE MARKER */}
+            {(vehiclePos || drCoords) && !isNaN((vehiclePos || drCoords)![0]) && (
+              <Marker
+                position={vehiclePos || drCoords}
+                icon={getVehicleMarkerIcon(
+                  trip.driver?.type || trip.rideType || "CAR",
+                  vehicleRotation
+                )}
+                zIndexOffset={3000}
+              >
+                <Popup>
+                  <div className="p-1 font-sans text-xs">
+                    <p className="font-extrabold text-amber-600 flex items-center gap-1">🚗 Real-Time Driver GPS</p>
+                    <p className="text-[10px] text-gray-700 font-bold mt-0.5">{trip.driver?.name || "Driver"} &bull; {trip.driver?.plate || "TS 08 ET 4920"}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+          </MapContainer>
+
+          {/* Real-Time Live GPS Active Badge */}
+          <div className="absolute top-3 left-3 z-[999] bg-slate-900/90 backdrop-blur-md border border-white/15 px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 text-white">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-[10.5px] font-black uppercase tracking-wider text-emerald-400">
+              Live GPS Synced
+            </span>
+            <span className="text-[9.5px] text-white/60 font-medium">
+              &bull; Real-Time
+            </span>
+          </div>
+
+          {/* Map Floating Controls: Maximize/Minimize & Recenter Side-by-Side */}
+          <div className="absolute bottom-3 right-3 z-[999] flex items-center gap-2.5">
+            <button
+              onClick={() => setIsMapExpanded(!isMapExpanded)}
+              className="w-10 h-10 bg-white text-secondary border border-hairline-soft rounded-full shadow-lg flex items-center justify-center backdrop-blur-md active:scale-90 transition-all cursor-pointer hover:border-amber-400"
+              title={isMapExpanded ? "Minimise Map View" : "Maximise Map View"}
+              aria-label={isMapExpanded ? "Minimise Map View" : "Maximise Map View"}
+            >
+              {isMapExpanded ? (
+                <Minimize2 size={18} className="stroke-[2.5] text-secondary" />
+              ) : (
+                <Maximize2 size={18} className="stroke-[2.5] text-secondary" />
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                const mapEl = document.querySelector(".leaflet-container");
+                const activeVehiclePos = vehiclePos || drCoords;
+                if (mapEl && (mapEl as any)._leaflet_map) {
+                  const mapObj = (mapEl as any)._leaflet_map;
+                  if (activeVehiclePos && !isNaN(activeVehiclePos[0])) {
+                    mapObj.panTo(activeVehiclePos, { animate: true, duration: 0.5 });
+                  } else if (pCoords && dCoords) {
+                    const bounds = L.latLngBounds([pCoords, dCoords]);
+                    mapObj.fitBounds(bounds, { padding: [50, 50] });
+                  }
                 }
-              }
-              setIsAutoTracking(true);
-              showTrackingNotification("Auto-Pan & Vehicle Tracking Re-enabled");
-            }}
-            className="w-10 h-10 bg-white text-secondary border border-hairline-soft rounded-full shadow-lg flex items-center justify-center backdrop-blur-md active:scale-90 transition-all cursor-pointer hover:border-amber-400"
-            title="Recenter Vehicle"
-            aria-label="Recenter Vehicle"
-          >
-            <Navigation size={18} className="transform rotate-45 fill-current text-secondary" />
-          </button>
+                setIsAutoTracking(true);
+                showTrackingNotification("Auto-Pan & Vehicle Tracking Re-enabled");
+              }}
+              className="w-10 h-10 bg-white text-secondary border border-hairline-soft rounded-full shadow-lg flex items-center justify-center backdrop-blur-md active:scale-90 transition-all cursor-pointer hover:border-amber-400"
+              title="Recenter Vehicle"
+              aria-label="Recenter Vehicle"
+            >
+              <Navigation size={18} className="transform rotate-45 fill-current text-secondary" />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Journey Panel Overlay */}
-      <div className={`bg-surface-card border-t border-hairline shadow-2xl px-5 py-4 overflow-y-auto shrink-0 z-[1000] flex-1 flex flex-col justify-between ${isMapExpanded ? "max-h-[220px]" : ""}`}>
-        <div>
-          {/* Scheduled Banner & Ride Status (Started or Not Started) */}
-          <div className="mb-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/50 rounded-2xl p-3 flex flex-col gap-2 shadow-3xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <Calendar size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                <span className="text-[11px] font-black uppercase tracking-wide text-amber-900 dark:text-amber-200 truncate">
-                  Scheduled Ride: {trip.date || "Today"} {trip.time ? `at ${trip.time}` : ""}
-                </span>
-              </div>
-              <span className="bg-amber-500 text-slate-950 text-[8.5px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-widest shrink-0 shadow-3xs">
-                SCHEDULED
-              </span>
-            </div>
+        {/* Driver Details Section (Bottom 50% Pop-Up: Clean, Normal, Minimal & Accessible) */}
+        {!isMapExpanded && (
+          <div className="h-1/2 w-full basis-1/2 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl z-20 flex flex-col overflow-y-auto overscroll-contain">
+            {/* Subtle sheet drag indicator */}
+            <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mt-2 shrink-0" />
 
-            {/* Ride Status: Started or Not Started */}
-            <div className="pt-2 border-t border-amber-200/60 dark:border-amber-800/40 flex items-center justify-between">
-              <span className="text-[9.5px] font-black text-amber-900/80 dark:text-amber-300 uppercase tracking-wider">
-                Ride Status
-              </span>
-              <span
-                className={`text-[9.5px] font-black uppercase px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-3xs ${
-                  isCancelled
-                    ? "bg-rose-500 text-white"
-                    : isRideStarted
-                      ? "bg-emerald-500 text-white animate-pulse"
-                      : "bg-slate-950 text-amber-400"
-                }`}
-              >
-                {isCancelled
-                  ? "✕ Trip Cancelled"
-                  : isRideStarted
-                    ? "● Ride Started"
-                    : "○ Not Started Yet"}
-              </span>
-            </div>
-          </div>
-
-          {/* Attractive & Prominent Trip Code (OTP) - ONLY VISIBLE TO RIDER */}
-          {!isSharedMode && (
-            <div className="bg-gradient-to-r from-amber-400 via-[#FACC15] to-yellow-300 text-slate-950 p-3.5 rounded-2xl flex items-center justify-between mb-3.5 shadow-sm border border-amber-300/80">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-950/10 flex items-center justify-center text-slate-950 font-bold shrink-0">
-                  <Shield size={18} />
-                </div>
-                <div>
-                  <span className="text-[8.5px] font-black uppercase tracking-widest text-slate-900/80 block leading-none">
-                    Trip Verification Code (OTP)
-                  </span>
-                  <span className="text-xl font-black uppercase tracking-[0.2em] font-mono text-slate-950 leading-tight block mt-0.5">
-                    {trip.otp || (trip.id ? String(trip.id).split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 9000 + 1000 : 4829)}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  const otpVal = trip.otp || (trip.id ? String(trip.id).split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 9000 + 1000 : 4829);
-                  navigator.clipboard.writeText(String(otpVal));
-                  showTrackingNotification("Trip OTP copied to clipboard!");
-                }}
-                className="px-3 py-1.5 bg-slate-950 text-white hover:bg-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-3xs cursor-pointer shrink-0"
-              >
-                <Copy size={11} />
-                <span>COPY</span>
-              </button>
-            </div>
-          )}
-
-          {/* Driver Start, Pickup, and Destination Timeline Card */}
-          <div className="bg-surface-soft dark:bg-slate-900/70 p-3.5 rounded-2xl border border-hairline-soft mb-3.5 space-y-2.5">
-            {/* Step 1: Driver Start Point */}
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex items-center justify-center">
-                <div className="w-4 h-4 rounded-full bg-blue-500 ring-4 ring-blue-500/20 flex items-center justify-center text-white text-[8px] font-black">
-                  <Car size={9} />
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[8.5px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block leading-none">
-                  Driver Start Point
-                </span>
-                <p className="text-xs font-black text-ink leading-tight truncate mt-0.5">
-                  {driverStartAddr}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center pl-1.5 gap-3">
-              <div className="w-0.5 h-3 bg-blue-300 dark:bg-blue-800 rounded-full" />
-            </div>
-
-            {/* Step 2: Rider Pickup Point */}
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex items-center justify-center">
-                <div className="w-4 h-4 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 flex items-center justify-center text-white text-[8px] font-black">
-                  A
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[8.5px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block leading-none">
-                  Rider Pickup Point
-                </span>
-                <p className="text-xs font-black text-ink leading-tight truncate mt-0.5">
-                  {pickupAddr}
-                </p>
-              </div>
-            </div>
-
-            {/* In-Between Distance & Duration Indicator */}
-            <div className="flex items-center pl-1.5 gap-3">
-              <div className="w-0.5 h-6 bg-gradient-to-b from-emerald-500 via-amber-400 to-rose-500 rounded-full" />
-              <div className="flex items-center gap-2 px-3 py-0.5 bg-surface-card dark:bg-slate-800 rounded-full border border-hairline-soft shadow-3xs">
-                <Clock size={10} className="text-amber-500 shrink-0" />
-                <span className="text-[9.5px] font-extrabold text-ink">
-                  {trip.duration || "15 mins"}
-                </span>
-                <span className="text-slate-300 dark:text-slate-700 font-bold">&bull;</span>
-                <Navigation size={9} className="text-sky-500 shrink-0 transform rotate-45" />
-                <span className="text-[9.5px] font-extrabold text-ink">
-                  {trip.distance || "12.5 km"}
-                </span>
-              </div>
-            </div>
-
-            {/* Step 3: Rider Destination Point */}
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex items-center justify-center">
-                <div className="w-4 h-4 rounded-full bg-rose-500 ring-4 ring-rose-500/20 flex items-center justify-center text-white text-[8px] font-black">
-                  B
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[8.5px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider block leading-none">
-                  Rider Destination Point
-                </span>
-                <p className="text-xs font-black text-ink leading-tight truncate mt-0.5">
-                  {dropoffAddr}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Estimated Fare & Payment Method Row */}
-          <div className="bg-surface-soft dark:bg-slate-900/90 p-3 rounded-2xl border border-hairline-soft mb-3.5 flex items-center justify-between">
-            <div>
-              <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none mb-0.5">
-                APPROX
-              </span>
-              <span className="text-lg font-black text-ink italic tracking-tight leading-none block">
-                ₹{trip.price || trip.fare || 350}
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-full border border-emerald-200/60 dark:border-emerald-800/40">
-                {trip.paymentMethod || "CASH ON TRIP"}
-              </span>
-            </div>
-          </div>
-
-          {/* Driver Details Card with Call and Chat */}
-          {trip.driver ? (
-            <div className="flex items-center justify-between bg-zinc-950 p-3.5 rounded-3xl text-white mb-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={trip.driver.avatar || "https://picsum.photos/seed/driver/100/100"}
-                  alt="Driver profile"
-                  referrerPolicy="no-referrer"
-                  className="w-11 h-11 rounded-2xl object-cover border border-white/10 shrink-0"
-                />
-                <div className="min-w-0">
-                  <h4 className="text-xs font-black uppercase tracking-tight text-white italic leading-none truncate">
-                    {trip.driver.name}
-                  </h4>
-                  <p className="text-[9px] font-bold tracking-widest text-[#FACC15] uppercase mt-1 truncate">
-                    ★ {trip.driver.rating || "4.9"} &bull; {trip.driver.vehicle || "Cab Vehicle"}
-                  </p>
-                  <p className="text-[10px] font-mono tracking-widest text-emerald-400 mt-0.5 uppercase font-black truncate">
-                    {trip.driver.plate || "MH12 AB 1234"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Call Driver Button */}
-                {userPreferences.allowCalls && (
-                  <a
-                    href={`tel:${trip.driver.phone || "9988776655"}`}
-                    className="w-10 h-10 rounded-2xl bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center border border-white/10 text-[#FACC15] active:scale-95 transition-all"
-                    aria-label="Call driver"
-                    title="Call Driver"
-                  >
-                    <Phone size={16} />
-                  </a>
-                )}
-
-                {/* Chat with Driver Button */}
-                {userPreferences.allowChat && (
-                  <button
-                    onClick={() => setShowChatModal(true)}
-                    className="w-10 h-10 rounded-2xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 flex items-center justify-center text-sky-400 active:scale-95 transition-all cursor-pointer"
-                    aria-label="Chat with driver"
-                    title="Chat with Driver"
-                  >
-                    <MessageSquare size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-surface-soft border border-hairline-soft p-3.5 rounded-3xl flex flex-col gap-3 mb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {trip.customer?.avatar ? (
-                    <img
-                      src={trip.customer.avatar}
-                      alt={trip.customer?.name || trip.user || "Rider"}
-                      className="w-10 h-10 rounded-2xl object-cover border border-hairline-soft shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-2xl bg-[#FACC15]/20 flex items-center justify-center text-amber-500 font-black text-xs">
-                      {(trip.customer?.name || trip.user || "Rider").substring(0, 2).toUpperCase()}
+            <div className="p-3 sm:p-3.5 flex flex-col gap-2.5 flex-1 min-h-0">
+              {/* 1. Proximity & Status Card (Image 3 Reference) */}
+              <div className="p-3 bg-amber-50/75 dark:bg-amber-950/30 border border-amber-200/90 dark:border-amber-900/60 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 shadow-xs">
+                    <Navigation size={18} className="transform rotate-45 fill-current text-slate-950" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="bg-amber-400 text-slate-950 font-black text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded shadow-3xs">
+                        {statusInfo.title}
+                      </span>
+                      <span className="text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 text-[9px] font-bold px-1.5 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800/80 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Live GPS
+                      </span>
                     </div>
-                  )}
-                  <div>
-                    <h4 className="text-xs font-black uppercase text-ink italic leading-none">
-                      {trip.customer?.name || trip.user || "Rider Partner"}
-                    </h4>
-                    <p className="text-[9.5px] font-bold text-ash mt-1 flex items-center gap-1">
-                      <Star size={10} className="text-amber-500 fill-amber-500" />
-                      <span>{trip.customer?.rating || 4.9} &bull; {trip.seats || 1} seat(s) requested</span>
+                    <p className="font-extrabold text-xs text-slate-900 dark:text-white mt-1 truncate">
+                      Driver is approaching ({liveProximity.distanceKm} away)
                     </p>
                   </div>
                 </div>
+                <div className="text-right shrink-0 pl-2">
+                  <span className="text-xs font-black text-slate-950 dark:text-white block">
+                    {liveProximity.distanceKm}
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block">
+                    ~{liveProximity.etaMinutes} mins
+                  </span>
+                </div>
+              </div>
 
+              {/* 2. Driver Profile & Quick Call/Chat Card (Image 3 Reference) */}
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="relative shrink-0">
+                    <img
+                      src={trip.driver?.avatar || (trip.customer?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80")}
+                      alt={trip.driver?.name || "Driver"}
+                      referrerPolicy="no-referrer"
+                      className="w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs"
+                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-tight truncate">
+                        {trip.driver ? trip.driver.name : (trip.customer?.name || trip.user || "Assigned Driver")}
+                      </h3>
+                      <span className="flex items-center gap-0.5 text-[9px] font-black text-amber-950 bg-amber-400 px-1.5 py-0.5 rounded shadow-3xs">
+                        <Star size={9} fill="currentColor" />
+                        <span>{trip.driver ? (trip.driver.rating || "4.92") : "4.92"}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                      <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono font-black text-slate-900 dark:text-slate-100 text-[9px]">
+                        {trip.driver?.plate || "MH12 AB 1234"}
+                      </span>
+                      <span>•</span>
+                      <span className="truncate">{trip.driver?.vehicle || "Maruti Swift Dzire"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Controls: External Navigation, Call & Chat */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   {userPreferences.allowCalls && (
                     <a
-                      href={`tel:${trip.customer?.phone || "9988776655"}`}
-                      className="w-9 h-9 rounded-2xl bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center border border-white/10 text-[#FACC15] active:scale-95 transition-all"
-                      title="Call Rider"
+                      href={`tel:${(trip.driver ? trip.driver.phone : trip.customer?.phone) || "9988776655"}`}
+                      className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center active:scale-95 transition-all shadow-3xs"
+                      title="Call Driver"
                     >
                       <Phone size={14} />
                     </a>
                   )}
                   {userPreferences.allowChat && (
                     <button
+                      type="button"
                       onClick={() => setShowChatModal(true)}
-                      className="w-9 h-9 rounded-2xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 flex items-center justify-center text-sky-400 active:scale-95 transition-all cursor-pointer"
-                      title="Chat Rider"
+                      className="w-9 h-9 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-3xs"
+                      title="Chat with Driver"
                     >
                       <MessageSquare size={14} />
                     </button>
@@ -1431,57 +1401,124 @@ export const LiveJourneyTracker: React.FC<LiveJourneyTrackerProps> = ({
                 </div>
               </div>
 
-              {trip.status === "delivered" || trip.status === "completed" ? (
-                <div className="w-full h-10 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-black text-[10.5px] uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2">
-                  <CheckCircle2 size={15} />
-                  <span>RIDER DROPPED (⭐ {trip.driverRating || 5})</span>
+              {/* 3. Trip Start PIN Card (Image 3 Reference) */}
+              {!isSharedMode && (
+                <div className="p-3 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Shield size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div className="min-w-0">
+                      <h5 className="text-[10.5px] font-black uppercase tracking-wider text-slate-900 dark:text-white truncate">
+                        TRIP START PIN
+                      </h5>
+                      <p className="text-[9.5px] text-slate-500 dark:text-slate-400 truncate">
+                        Share with driver before boarding
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const otpVal = trip.otp || (trip.id ? String(trip.id).split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 9000 + 1000 : 4829);
+                      navigator.clipboard.writeText(String(otpVal));
+                      showTrackingNotification("Trip PIN copied to clipboard!");
+                    }}
+                    className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-mono font-black text-xs rounded-xl flex items-center gap-1.5 shadow-3xs cursor-pointer active:scale-95 transition-all shrink-0"
+                    title="Copy PIN"
+                  >
+                    <span>PIN: {trip.otp || (trip.id ? String(trip.id).split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 9000 + 1000 : 4829)}</span>
+                    <Copy size={11} />
+                  </button>
                 </div>
-              ) : (
-                <button
-                  onClick={() => setRiderToRate(trip)}
-                  className="w-full h-10 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10.5px] uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95 transition-all"
-                >
-                  <CheckCircle2 size={15} />
-                  <span>MARK DROPPED & RATE RIDER</span>
-                </button>
               )}
+
+              {/* 4. Stops & Fare Strip (Image 3 Reference) */}
+              <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[8px] font-black flex items-center justify-center shrink-0">
+                      A
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate leading-tight" title={pickupAddr}>
+                      {pickupAddr}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-4 h-4 rounded-full bg-rose-600 text-white text-[8px] font-black flex items-center justify-center shrink-0">
+                      B
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate leading-tight" title={dropoffAddr}>
+                      {dropoffAddr}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end shrink-0 pl-3 border-l border-slate-200 dark:border-slate-700">
+                  <span className="text-base font-black italic tracking-tight text-slate-950 dark:text-white leading-none">
+                    ₹{trip.price || trip.fare || 660}
+                  </span>
+                  <div className="flex items-center gap-1 text-[9px] font-extrabold text-slate-600 dark:text-slate-400 mt-1">
+                    <span>{trip.duration || "2 mins"}</span>
+                    <span className="opacity-40">•</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 uppercase font-black">{trip.paymentMethod || "CASH"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Action Buttons Row with pb-28 to clear bottom nav */}
+              <div className="flex items-center gap-2 pt-0.5 pb-28 sm:pb-24">
+                {!isCancelled && !isSharedMode && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    className="h-9 px-3.5 bg-slate-100 hover:bg-rose-50 text-slate-800 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-slate-200 rounded-xl flex items-center justify-center gap-1 text-[11px] font-black uppercase tracking-wider border border-slate-200/80 dark:border-slate-700 active:scale-95 transition-all cursor-pointer shrink-0 shadow-3xs"
+                    title="Cancel Ride"
+                  >
+                    <X size={13} />
+                    <span>Cancel</span>
+                  </button>
+                )}
+
+                {!trip.driver ? (
+                  trip.status === "delivered" || trip.status === "completed" ? (
+                    <div className="flex-1 h-9 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
+                      <CheckCircle2 size={14} />
+                      <span>Rider Dropped</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setRiderToRate(trip)}
+                      className="flex-1 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer"
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>Mark Dropped & Review</span>
+                    </button>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={copyShareLink}
+                    className="flex-1 h-9 bg-[#FACC15] hover:bg-[#E2B90D] text-slate-950 font-black text-[11px] uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer"
+                  >
+                    {copied ? (
+                      <>
+                        <CheckCircle2 size={14} />
+                        <span>Link Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 size={14} />
+                        <span>Share Ride Tracking</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* Bottom Action Section: CANCEL RIDE & SHARE RIDE - ONLY VISIBLE TO RIDER */}
-        {!isSharedMode && (
-          <div className="pt-2.5 border-t border-hairline-soft flex gap-2.5 w-full">
-            {!isCancelled && (
-              <button
-                onClick={() => setShowCancelModal(true)}
-                className="flex-1 h-11 bg-rose-50 hover:bg-rose-100/80 text-rose-600 rounded-2xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider border border-rose-200/80 active:scale-95 transition-all cursor-pointer shadow-3xs"
-              >
-                <X size={13} strokeWidth={2.5} />
-                <span>CANCEL RIDE</span>
-              </button>
-            )}
-
-            <button
-              onClick={copyShareLink}
-              className="flex-1 h-11 bg-[#FACC15] hover:bg-[#E2B90D] text-slate-950 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-wider border border-[#FACC15] shadow-xs active:scale-95 transition-all cursor-pointer"
-            >
-              {copied ? (
-                <>
-                  <CheckCircle2 size={14} className="text-slate-950" />
-                  <span>LINK COPIED</span>
-                </>
-              ) : (
-                <>
-                  <Share2 size={13} className="text-slate-950 shrink-0" />
-                  <span>SHARE RIDE</span>
-                </>
-              )}
-            </button>
           </div>
         )}
       </div>
-
       {/* Built-in Chat Drawer / Modal */}
       <AnimatePresence>
         {showChatModal && (

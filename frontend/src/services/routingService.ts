@@ -6,20 +6,51 @@ import { RouteData } from '../types';
 export const routingService = {
   /**
    * Fetches route data between two points
+   * Dynamically supports Google Maps, Ola Maps, and OSRM through backend /api/directions
+   * with automatic offline and direct OSRM fallbacks.
    * @param start [lat, lng]
    * @param end [lat, lng]
    */
   async getRoute(start: [number, number], end: [number, number]): Promise<RouteData> {
-    try {
-      const [startLat, startLng] = start;
-      const [endLat, endLng] = end;
+    const [startLat, startLng] = start;
+    const [endLat, endLng] = end;
 
+    // 1. Try unified backend directions API (routes to active provider: Google, Ola, or OSRM)
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const backendUrl = `/api/directions?origin=${startLat},${startLng}&destination=${endLat},${endLng}`;
+      const res = await fetch(backendUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.coordinates) && data.coordinates.length > 0) {
+          const coords = data.coordinates;
+          coords[0] = [startLat, startLng];
+          coords[coords.length - 1] = [endLat, endLng];
+          return {
+            coordinates: coords,
+            distance: data.distance,
+            duration: data.duration,
+            distanceStr: data.distanceStr || this.formatDistance(data.distance),
+            durationStr: data.durationStr || this.formatDuration(data.duration)
+          };
+        }
+      }
+    } catch {
+      // Backend request timed out or network error; fall through to direct OSRM
+    }
+
+    // 2. Direct client-side OSRM fallback
+    try {
       // OSRM expects coordinates in lon,lat format
       const coordinates = `${startLng},${startLat};${endLng},${endLat}`;
       const url = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       try {
         const response = await fetch(url, { signal: controller.signal });
@@ -40,8 +71,6 @@ export const routingService = {
         // OSRM returns coordinates as [lon, lat], we need [lat, lng] for Leaflet
         const routeCoordinates = route.geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number]);
         
-        // Force start and end coordinates to be exactly what was requested 
-        // to prevent "gaps" between markers and the polyline due to road-snapping
         if (routeCoordinates.length > 0) {
           routeCoordinates[0] = [startLat, startLng];
           routeCoordinates[routeCoordinates.length - 1] = [endLat, endLng];
@@ -57,9 +86,8 @@ export const routingService = {
           distanceStr: this.formatDistance(distance),
           durationStr: this.formatDuration(duration)
         };
-      } catch (err: any) {
+      } catch {
         clearTimeout(timeoutId);
-        // Silently use fallback route on any error
         return this.getFallbackRoute(start, end);
       }
     } catch (error) {
