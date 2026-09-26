@@ -805,6 +805,20 @@
   ],
   "riderBanners": [
     {
+      "id": "ban_apk_download",
+      "title": "Download TaxiApp Android APK – Fast Booking & Zero Battery Drain",
+      "image": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80",
+      "url": "/api/mobile/download-apk/release",
+      "active": true,
+      "position": "top",
+      "buttonText": "Download APK",
+      "buttonSize": "sm",
+      "buttonBgColor": "bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400",
+      "buttonTextColor": "#000000",
+      "scrollingSpeed": 4,
+      "targetAudience": "rider"
+    },
+    {
       "id": "ban_r1",
       "title": "Airport Luxury Transfer - Flat 15% Off On Prime Sedans",
       "image": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80",
@@ -849,6 +863,20 @@
   ],
   "driverBanners": [
     {
+      "id": "ban_driver_apk_download",
+      "title": "Download Driver Captain APK – Instant Ride Radar & Zero Latency",
+      "image": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80",
+      "url": "/api/mobile/download-apk/release",
+      "active": true,
+      "position": "top",
+      "buttonText": "Download APK",
+      "buttonSize": "sm",
+      "buttonBgColor": "bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400",
+      "buttonTextColor": "#000000",
+      "scrollingSpeed": 4,
+      "targetAudience": "driver"
+    },
+    {
       "id": "ban_d1",
       "title": "Weekly Captain Bonus: Complete 15 Trips & Earn ₹1,500 Extra",
       "image": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=1200&q=80",
@@ -892,6 +920,20 @@
     }
   ],
   "bothBanners": [
+    {
+      "id": "ban_apk_download",
+      "title": "Download TaxiApp Android APK – Fast Booking & Zero Battery Drain",
+      "image": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80",
+      "url": "/api/mobile/download-apk/release",
+      "active": true,
+      "position": "top",
+      "buttonText": "Download APK",
+      "buttonSize": "sm",
+      "buttonBgColor": "bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400",
+      "buttonTextColor": "#000000",
+      "scrollingSpeed": 4,
+      "targetAudience": "both"
+    },
     {
       "id": "ban_b1",
       "title": "24/7 Safety First: Emergency SOS & Real-time Live Route Monitoring",

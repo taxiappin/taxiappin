@@ -11,6 +11,7 @@ import {
   ThumbsUp, TrendingUp, Clock, AlertTriangle, PhoneCall, Search, Filter, X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { ApkDownloadModal } from './modals/ApkDownloadModal';
 
 interface PublicLandingPageViewProps {
   onLaunchApp: () => void;
@@ -448,6 +449,7 @@ export const PublicLandingPageView: React.FC<PublicLandingPageViewProps> = ({
   
   // Home Card Audience Filter ('all' | 'rider' | 'driver')
   const [homeAudienceFilter, setHomeAudienceFilter] = useState<'all' | 'rider' | 'driver'>('all');
+  const [showApkModal, setShowApkModal] = useState(false);
 
   // Carousel Slide State
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -649,6 +651,26 @@ export const PublicLandingPageView: React.FC<PublicLandingPageViewProps> = ({
 
             <div className="flex items-center gap-2">
               <button
+                type="button"
+                onClick={() => {
+                  try {
+                    const link = document.createElement('a');
+                    link.href = '/api/mobile/download-apk/release';
+                    link.setAttribute('download', 'taxiapp-v2.0.4-release.apk');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  } catch (err) {}
+                  setShowApkModal(true);
+                }}
+                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95 shrink-0"
+                title="Download Android APK"
+              >
+                <Download size={13} />
+                <span>APK</span>
+              </button>
+
+              <button
                 onClick={onOpenRiderLogin || onLaunchApp}
                 className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95 shrink-0 border border-amber-300"
               >
@@ -688,8 +710,33 @@ export const PublicLandingPageView: React.FC<PublicLandingPageViewProps> = ({
                     </div>
                   ))}
 
-                  {/* Empty top container (tags and badges removed per user request) */}
-                  <div className="relative z-10" />
+                  {/* Top bar with Download APK Button */}
+                  <div className="relative z-10 flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        try {
+                          const link = document.createElement('a');
+                          link.href = '/api/mobile/download-apk/release';
+                          link.setAttribute('download', 'taxiapp-v2.0.4-release.apk');
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        } catch (err) {}
+                        setShowApkModal(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-emerald-600 text-white backdrop-blur-md border border-white/20 shadow-lg text-[10px] font-black tracking-wide transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+                      title="Download Android APK"
+                    >
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <Download size={13} className="text-emerald-400" />
+                      <span className="uppercase text-[9.5px]">Download APK</span>
+                    </button>
+                  </div>
 
                   {/* Bottom Card Info & CTA Button */}
                   <div className="relative z-10 space-y-3.5 text-left pt-6">
@@ -1328,6 +1375,14 @@ export const PublicLandingPageView: React.FC<PublicLandingPageViewProps> = ({
 
         </div>
       )}
+
+      {/* APK Download Modal */}
+      <ApkDownloadModal
+        isOpen={showApkModal}
+        onClose={() => setShowApkModal(false)}
+        appName={landingConfig.brandName || "TaxiApp"}
+        versionName="2.0.4"
+      />
     </div>
   );
 };

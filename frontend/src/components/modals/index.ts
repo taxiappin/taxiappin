@@ -10,3 +10,4 @@ export * from "./SavedPlacesModal";
 export * from "./SupportSafetyModal";
 export * from "./VerificationModal";
 export * from "./WalletModals";
+export * from "./ApkDownloadModal";
