@@ -24552,33 +24552,6 @@ export default function App() {
                                       "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=600";
                                   }}
                                 />
-                                
-                                {/* Download APK Top Right CTA */}
-                                <div className="absolute top-2.5 right-2.5 z-20">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      try {
-                                        const link = document.createElement('a');
-                                        link.href = '/api/mobile/download-apk/release';
-                                        link.setAttribute('download', 'taxiapp-v2.0.4-release.apk');
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                      } catch (err) {}
-                                      window.dispatchEvent(new CustomEvent('taxiapp_open_apk_download'));
-                                    }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-emerald-600 text-white backdrop-blur-md border border-white/20 shadow-lg text-[10px] font-black tracking-wide transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
-                                    title="Download Android APK"
-                                  >
-                                    <span className="relative flex h-2 w-2">
-                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                    </span>
-                                    <Download className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span className="font-sans font-black tracking-wider uppercase text-[9px]">Download APK</span>
-                                  </button>
-                                </div>
 
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-4 text-left">
                                   <span className="text-[7px] font-black uppercase text-primary tracking-[0.25em] leading-none mb-1">

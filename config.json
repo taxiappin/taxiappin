@@ -806,12 +806,12 @@
   "riderBanners": [
     {
       "id": "ban_apk_download",
-      "title": "Download TaxiApp Android APK – Fast Booking & Zero Battery Drain",
+      "title": "Download TaxiApp Android App – Fast Booking & Zero Battery Drain",
       "image": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80",
       "url": "/api/mobile/download-apk/release",
       "active": true,
       "position": "top",
-      "buttonText": "Download APK",
+      "buttonText": "Download the App",
       "buttonSize": "sm",
       "buttonBgColor": "bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400",
       "buttonTextColor": "#000000",
@@ -864,12 +864,12 @@
   "driverBanners": [
     {
       "id": "ban_driver_apk_download",
-      "title": "Download Driver Captain APK – Instant Ride Radar & Zero Latency",
+      "title": "Download Driver Captain App – Instant Ride Radar & Zero Latency",
       "image": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80",
       "url": "/api/mobile/download-apk/release",
       "active": true,
       "position": "top",
-      "buttonText": "Download APK",
+      "buttonText": "Download the App",
       "buttonSize": "sm",
       "buttonBgColor": "bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400",
       "buttonTextColor": "#000000",
@@ -922,12 +922,12 @@
   "bothBanners": [
     {
       "id": "ban_apk_download",
-      "title": "Download TaxiApp Android APK – Fast Booking & Zero Battery Drain",
+      "title": "Download TaxiApp Android App – Fast Booking & Zero Battery Drain",
       "image": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80",
       "url": "/api/mobile/download-apk/release",
       "active": true,
       "position": "top",
-      "buttonText": "Download APK",
+      "buttonText": "Download the App",
       "buttonSize": "sm",
       "buttonBgColor": "bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400",
       "buttonTextColor": "#000000",
