@@ -150,55 +150,80 @@ router.get("/download-apk/:type", async (req, res) => {
     console.warn("Failed to check custom APK URL from config:", err);
   }
 
-  let finalPath = fs.existsSync(apkPath)
-    ? apkPath
-    : fs.existsSync(permanentApkPath)
-    ? permanentApkPath
-    : fs.existsSync(publicApkPath)
-    ? publicApkPath
-    : null;
+  // Possible valid APK paths on disk
+  const candidatePaths = [
+    apkPath,
+    permanentApkPath,
+    publicApkPath,
+    path.join(process.cwd(), "dist", "mobile", `taxiapp-v2.0.4-${type}.apk`),
+    path.join(process.cwd(), "dist", "mobile", "taxiapp-release.apk")
+  ];
 
-  // Auto-generate fallback APK container if neither exists
-  if (!finalPath) {
-    try {
-      const outDir = path.join(process.cwd(), "capacitor", "apks");
-      if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-
-      const zip = new JSZip();
-      const manifestPath = path.join(androidAppPath, "src", "main", "AndroidManifest.xml");
-      if (fs.existsSync(manifestPath)) {
-        zip.file("AndroidManifest.xml", fs.readFileSync(manifestPath));
+  let finalPath: string | null = null;
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      const stats = fs.statSync(p);
+      // Valid compiled Android APKs are at least 1MB
+      if (stats.size > 500 * 1024) {
+        finalPath = p;
+        break;
       }
-      const capConfigPath = path.join(process.cwd(), "capacitor.config.json");
-      if (fs.existsSync(capConfigPath)) {
-        zip.file("assets/capacitor.config.json", fs.readFileSync(capConfigPath));
-      }
-      const publicDir = path.join(process.cwd(), "frontend", "public");
-      if (fs.existsSync(publicDir)) {
-        const files = fs.readdirSync(publicDir);
-        for (const f of files) {
-          const fp = path.join(publicDir, f);
-          if (fs.statSync(fp).isFile()) {
-            zip.file("assets/public/" + f, fs.readFileSync(fp));
-          }
-        }
-      }
-      zip.file("classes.dex", Buffer.from([0x64, 0x65, 0x78, 0x0a, 0x30, 0x33, 0x35, 0x00]));
-      zip.file("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\nCreated-By: 1.0 (TaxiApp Mobile Builder)\r\nBuilt-By: TaxiApp\r\n");
-
-      const generatedBuf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
-      fs.writeFileSync(permanentApkPath, generatedBuf);
-
-      finalPath = permanentApkPath;
-    } catch (genErr) {
-      console.error("Failed to generate fallback APK:", genErr);
     }
   }
 
-  if (!finalPath || !fs.existsSync(finalPath)) {
-    return res.status(404).json({
-      error: `APK for ${type} is not yet built. Please build it first using the Mobile App Build tool or download the full project zip.`,
-    });
+  // If no valid compiled APK exists yet on the server
+  if (!finalPath) {
+    // Return a clean, mobile-responsive guidance page instead of a corrupt 7KB file that causes parse errors
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Install TaxiApp on Android</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+          body { background: #0f172a; color: #f8fafc; padding: 24px 16px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+          .card { background: #1e293b; border: 1px solid #334155; border-radius: 20px; max-width: 480px; width: 100%; padding: 28px 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+          .badge { display: inline-block; background: #f59e0b; color: #000; font-weight: 800; font-size: 11px; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; margin-bottom: 16px; letter-spacing: 0.05em; }
+          h1 { font-size: 22px; font-weight: 800; margin-bottom: 8px; color: #ffffff; }
+          p { font-size: 14px; color: #94a3b8; line-height: 1.5; margin-bottom: 20px; }
+          .step-box { background: #0f172a; border: 1px solid #334155; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+          .step-title { font-weight: 700; font-size: 14px; color: #38bdf8; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+          .step-desc { font-size: 13px; color: #cbd5e1; line-height: 1.4; }
+          .btn-primary { display: block; width: 100%; text-align: center; background: #10b981; hover:background: #059669; color: #ffffff; font-weight: 700; font-size: 15px; padding: 14px; border-radius: 12px; text-decoration: none; margin-top: 20px; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3); }
+          .btn-secondary { display: block; width: 100%; text-align: center; background: transparent; border: 1px solid #475569; color: #cbd5e1; font-weight: 600; font-size: 13px; padding: 12px; border-radius: 12px; text-decoration: none; margin-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <span class="badge">Official Android Setup</span>
+          <h1>Install TaxiApp</h1>
+          <p>You can run TaxiApp directly on your Android phone as a native app in two ways:</p>
+          
+          <div class="step-box">
+            <div class="step-title">⚡ Instant Method: Install as PWA (Recommended)</div>
+            <div class="step-desc">
+              1. Tap the three dots (<strong>⋮</strong>) in the top-right corner of Chrome.<br>
+              2. Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.<br>
+              3. The official TaxiApp icon will be added to your phone's home screen with zero APK signing errors!
+            </div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-title">📦 Compiled APK via GitHub Actions</div>
+            <div class="step-desc">
+              The automated build pipeline compiles the signed release APK using Android SDK & Gradle. You can download the latest compiled APK directly from GitHub Actions artifacts or releases.
+            </div>
+          </div>
+
+          <a href="/" class="btn-primary">Open TaxiApp Web App</a>
+          <a href="https://github.com/taxiappin/taxiappin/actions" target="_blank" class="btn-secondary">View GitHub Actions APK Builds</a>
+        </div>
+      </body>
+      </html>
+    `);
   }
 
   res.setHeader(
