@@ -11,3 +11,5 @@ capacitor/android/build/
 capacitor/android/app/build/
 capacitor/node_modules/
 tools/
+local.properties
+**/local.properties

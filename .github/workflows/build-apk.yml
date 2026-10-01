@@ -38,13 +38,14 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Make Gradlew Executable
-        run: chmod +x capacitor/android/gradlew
+        run: |
+          chmod +x capacitor/android/gradlew
+          rm -f capacitor/android/local.properties
 
       - name: Build Release APK
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           cd capacitor/android
           ./gradlew assembleRelease --no-daemon --stacktrace
