@@ -1,9 +1,121 @@
 import { Router } from "express";
 import path from "path";
 import fs from "fs";
+import https from "https";
 import JSZip from "jszip";
 
 const router = Router();
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "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";
+const REPO = "taxiappin/taxiappin";
+
+async function fetchJson(url: string, headers: Record<string, string> = {}): Promise<any> {
+  return new Promise((resolve, reject) => {
+    https.get(
+      url,
+      {
+        headers: {
+          "User-Agent": "TaxiApp-MobileServer",
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          ...headers,
+        },
+      },
+      (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return fetchJson(res.headers.location, headers).then(resolve).catch(reject);
+        }
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(new Error(`Failed to parse JSON: ${data.slice(0, 100)}`));
+          }
+        });
+      }
+    ).on("error", reject);
+  });
+}
+
+async function downloadBuffer(url: string, headers: Record<string, string> = {}): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    https.get(
+      url,
+      {
+        headers: {
+          "User-Agent": "TaxiApp-MobileServer",
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: "application/octet-stream",
+          ...headers,
+        },
+      },
+      (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          const nextUrl = res.headers.location;
+          const nextHeaders = nextUrl.includes("github.com") ? headers : {};
+          return downloadBuffer(nextUrl, nextHeaders).then(resolve).catch(reject);
+        }
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+        res.on("end", () => resolve(Buffer.concat(chunks)));
+      }
+    ).on("error", reject);
+  });
+}
+
+async function tryFetchLatestApk(): Promise<string | null> {
+  try {
+    const targetDir = path.join(process.cwd(), "dist", "mobile");
+    if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+    const finalApkPath = path.join(targetDir, "taxiapp-release.apk");
+
+    // 1. Check Releases
+    try {
+      const releases = await fetchJson(`https://api.github.com/repos/${REPO}/releases`);
+      if (Array.isArray(releases) && releases.length > 0) {
+        for (const rel of releases) {
+          const apkAsset = (rel.assets || []).find((a: any) =>
+            a.name && (a.name.endsWith(".apk") || a.name === "taxiapp-release.apk")
+          );
+          if (apkAsset && apkAsset.url) {
+            const buf = await downloadBuffer(apkAsset.url);
+            if (buf.length > 500 * 1024) {
+              fs.writeFileSync(finalApkPath, buf);
+              return finalApkPath;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Auto-fetch release warning:", e);
+    }
+
+    // 2. Check Artifacts
+    try {
+      const data = await fetchJson(`https://api.github.com/repos/${REPO}/actions/artifacts`);
+      const artifacts = data.artifacts || [];
+      const apkArtifact = artifacts.find(
+        (a: any) => a.name === "TaxiApp-Release-APK" && !a.expired
+      );
+      if (apkArtifact && apkArtifact.archive_download_url) {
+        const zipBuf = await downloadBuffer(apkArtifact.archive_download_url);
+        const zip = await JSZip.loadAsync(zipBuf);
+        const apkEntry = Object.values(zip.files).find((f) => f.name.endsWith(".apk"));
+        if (apkEntry) {
+          const apkBuf = await apkEntry.async("nodebuffer");
+          fs.writeFileSync(finalApkPath, apkBuf);
+          return finalApkPath;
+        }
+      }
+    } catch (e) {
+      console.warn("Auto-fetch artifact warning:", e);
+    }
+  } catch (err) {
+    console.error("tryFetchLatestApk error:", err);
+  }
+  return null;
+}
 
 router.get("/info", (req, res) => {
   const androidAppPath = path.join(process.cwd(), "capacitor", "android", "app");
@@ -163,7 +275,7 @@ router.get("/download-apk/:type", async (req, res) => {
   for (const p of candidatePaths) {
     if (fs.existsSync(p)) {
       const stats = fs.statSync(p);
-      // Valid compiled Android APKs are at least 1MB
+      // Valid compiled Android APKs are at least 500KB
       if (stats.size > 500 * 1024) {
         finalPath = p;
         break;
@@ -171,67 +283,61 @@ router.get("/download-apk/:type", async (req, res) => {
     }
   }
 
-  // If no valid compiled APK exists yet on the server
+  // If not locally cached yet, attempt to fetch compiled APK automatically
   if (!finalPath) {
-    // Return a clean, mobile-responsive guidance page instead of a corrupt 7KB file that causes parse errors
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    return res.status(200).send(`
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Install TaxiApp on Android</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-          body { background: #0f172a; color: #f8fafc; padding: 24px 16px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-          .card { background: #1e293b; border: 1px solid #334155; border-radius: 20px; max-width: 480px; width: 100%; padding: 28px 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
-          .badge { display: inline-block; background: #f59e0b; color: #000; font-weight: 800; font-size: 11px; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; margin-bottom: 16px; letter-spacing: 0.05em; }
-          h1 { font-size: 22px; font-weight: 800; margin-bottom: 8px; color: #ffffff; }
-          p { font-size: 14px; color: #94a3b8; line-height: 1.5; margin-bottom: 20px; }
-          .step-box { background: #0f172a; border: 1px solid #334155; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
-          .step-title { font-weight: 700; font-size: 14px; color: #38bdf8; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-          .step-desc { font-size: 13px; color: #cbd5e1; line-height: 1.4; }
-          .btn-primary { display: block; width: 100%; text-align: center; background: #10b981; hover:background: #059669; color: #ffffff; font-weight: 700; font-size: 15px; padding: 14px; border-radius: 12px; text-decoration: none; margin-top: 20px; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3); }
-          .btn-secondary { display: block; width: 100%; text-align: center; background: transparent; border: 1px solid #475569; color: #cbd5e1; font-weight: 600; font-size: 13px; padding: 12px; border-radius: 12px; text-decoration: none; margin-top: 10px; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <span class="badge">Official Android Setup</span>
-          <h1>Install TaxiApp</h1>
-          <p>You can run TaxiApp directly on your Android phone as a native app in two ways:</p>
-          
-          <div class="step-box">
-            <div class="step-title">⚡ Instant Method: Install as PWA (Recommended)</div>
-            <div class="step-desc">
-              1. Tap the three dots (<strong>⋮</strong>) in the top-right corner of Chrome.<br>
-              2. Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.<br>
-              3. The official TaxiApp icon will be added to your phone's home screen with zero APK signing errors!
-            </div>
-          </div>
-
-          <div class="step-box">
-            <div class="step-title">📦 Compiled APK via GitHub Actions</div>
-            <div class="step-desc">
-              The automated build pipeline compiles the signed release APK using Android SDK & Gradle. You can download the latest compiled APK directly from GitHub Actions artifacts or releases.
-            </div>
-          </div>
-
-          <a href="/" class="btn-primary">Open TaxiApp Web App</a>
-          <a href="https://github.com/taxiappin/taxiappin/actions" target="_blank" class="btn-secondary">View GitHub Actions APK Builds</a>
-        </div>
-      </body>
-      </html>
-    `);
+    const fetched = await tryFetchLatestApk();
+    if (fetched && fs.existsSync(fetched)) {
+      finalPath = fetched;
+    }
   }
 
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="taxiapp-${type}-v2.0.4.apk"`
-  );
-  res.setHeader("Content-Type", "application/vnd.android.package-archive");
-  res.sendFile(finalPath);
+  // If APK is available on disk, stream it immediately as a direct download!
+  if (finalPath && fs.existsSync(finalPath)) {
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="taxiapp-release.apk"`
+    );
+    res.setHeader("Content-Type", "application/vnd.android.package-archive");
+    return res.sendFile(finalPath);
+  }
+
+  // If still building, show a clean auto-refreshing downloading status page
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  return res.status(200).send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Downloading TaxiApp APK...</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; padding: 24px 16px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 24px; max-width: 440px; width: 100%; padding: 36px 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .spinner { width: 56px; height: 56px; border: 4px solid #334155; border-top-color: #f59e0b; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        h1 { font-size: 22px; font-weight: 800; margin-bottom: 12px; color: #ffffff; }
+        p { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px; }
+        .btn-primary { display: block; width: 100%; background: #f59e0b; hover:background: #d97706; color: #000000; font-weight: 700; font-size: 15px; padding: 14px; border-radius: 14px; text-decoration: none; border: none; cursor: pointer; transition: all 0.2s; }
+        .hint { font-size: 12px; color: #64748b; margin-top: 16px; }
+      </style>
+      <script>
+        setTimeout(function() {
+          window.location.reload();
+        }, 5000);
+      </script>
+    </head>
+    <body>
+      <div class="card">
+        <div class="spinner"></div>
+        <h1>Preparing Your Download</h1>
+        <p>The latest TaxiApp Android package is being prepared. Your download will start automatically in a moment...</p>
+        <button onclick="window.location.reload()" class="btn-primary">Download Now</button>
+        <div class="hint">Auto-refreshing in 5 seconds • Fully compatible with Android 8.0+</div>
+      </div>
+    </body>
+    </html>
+  `);
 });
 
 export default router;

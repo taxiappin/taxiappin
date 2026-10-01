@@ -18,25 +18,22 @@ android {
         }
     }
     signingConfigs {
-        debug {
-            storeFile file('debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
-        }
         release {
-            storeFile file('taxiappuser.jks')
-            storePassword 'Taxiapp@1013'
-            keyAlias 'taxiappuser'
-            keyPassword 'Taxiapp@1013'
+            if (file('taxiappuser.jks').exists()) {
+                storeFile file('taxiappuser.jks')
+                storePassword 'Taxiapp@1013'
+                keyAlias 'taxiappuser'
+                keyPassword 'Taxiapp@1013'
+            }
         }
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.release
+            if (file('taxiappuser.jks').exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
