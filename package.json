@@ -10,8 +10,7 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "mobile:sync": "cap copy android",
-    "mobile:build": "./capacitor/build-apk.sh",
-    "pull-apk": "tsx scripts/pull-apk.ts"
+    "mobile:build": "./capacitor/build-apk.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

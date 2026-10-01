@@ -119,17 +119,15 @@ export async function pullLatestApk(): Promise<string | null> {
   return null;
 }
 
-if (require.main === module) {
-  pullLatestApk().then((res) => {
-    if (res) {
-      console.log("APK pull completed successfully:", res);
-      process.exit(0);
-    } else {
-      console.log("No compiled APK artifact/release found yet. Ensure GitHub Actions has completed the build.");
-      process.exit(1);
-    }
-  }).catch((err) => {
-    console.error("Error pulling APK:", err);
+pullLatestApk().then((res) => {
+  if (res) {
+    console.log("APK pull completed successfully:", res);
+    process.exit(0);
+  } else {
+    console.log("No compiled APK artifact/release found yet.");
     process.exit(1);
-  });
-}
+  }
+}).catch((err) => {
+  console.error("Error pulling APK:", err);
+  process.exit(1);
+});
