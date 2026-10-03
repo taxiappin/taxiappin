@@ -110,7 +110,7 @@ export const GOOGLE_FONTS_PER_LANG: Record<string, FontOption[]> = {
 export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   en: {
     'app_name': 'TaxiApp',
-    'app_tagline': 'Fast, Reliable & Safe Taxi Service',
+    'app_tagline': 'Book a nearby taxi or earn by sharing yours.',
     'where_to': 'Where to?',
     'enter_pickup': 'Enter Pickup Location',
     'enter_dropoff': 'Enter Dropoff Location',
@@ -287,7 +287,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   hi: {
     'app_name': 'टैक्सी ऐप (TaxiApp)',
-    'app_tagline': 'तेज, सुरक्षित और किफायती टैक्सी सेवा',
+    'app_tagline': 'आस-पास टैक्सी बुक करें या अपनी यात्रा साझा करके कमाएं।',
     'where_to': 'आपको कहाँ जाना है?',
     'enter_pickup': 'पिकअप स्थान दर्ज करें',
     'enter_dropoff': 'ड्रॉप स्थान दर्ज करें',
@@ -464,7 +464,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   bn: {
     'app_name': 'ট্যাক্সি অ্যাপ (TaxiApp)',
-    'app_tagline': 'দ্রুত, নিরাপদ ও নির্ভরযোগ্য ট্যাক্সি সেবা',
+    'app_tagline': 'কাছের ট্যাক্সি বুক করুন অথবা রাইড শেয়ার করে আয় করুন।',
     'where_to': 'কোথায় যাবেন?',
     'enter_pickup': 'পিকআপ লোকেশন দিন',
     'enter_dropoff': 'ড্রপ লোকেশন দিন',
@@ -641,7 +641,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   te: {
     'app_name': 'టాక్సీ యాప్ (TaxiApp)',
-    'app_tagline': 'వేగవంతమైన, సురక్షితమైన టాక్సీ సేవలు',
+    'app_tagline': 'సమీపంలోని టాక్సీని బుక్ చేయండి లేదా ప్రయాణాన్ని పంచుకోవడం ద్వారా సంపాదించండి.',
     'where_to': 'ఎక్కడికి వెళ్ళాలి?',
     'enter_pickup': 'పికప్ స్థానాన్ని నమోదు చేయండి',
     'enter_dropoff': 'డ్రాప్ స్థానాన్ని నమోదు చేయండి',
@@ -818,7 +818,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   mr: {
     'app_name': 'टॅक्सी ॲप (TaxiApp)',
-    'app_tagline': 'जलद, सुरक्षित आणि विश्वासार्ह टॅक्सी सेवा',
+    'app_tagline': 'जवळची टॅक्सी बुक करा किंवा तुमची राइड शेअर करून कमवा.',
     'where_to': 'कुठे जायचे आहे?',
     'enter_pickup': 'पिकअप ठिकाण टाका',
     'enter_dropoff': 'ड्रॉप ठिकाण टाका',
@@ -995,7 +995,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   ta: {
     'app_name': 'டாக்ஸி ஆப் (TaxiApp)',
-    'app_tagline': 'வேகமான, பாதுகாப்பான டாக்ஸி சேவை',
+    'app_tagline': 'அருகிலுள்ள டாக்ஸியை முன்பதிவு செய்யுங்கள் அல்லது பயணத்தைப் பகிர்ந்து சம்பாதிக்கவும்.',
     'where_to': 'எங்கு செல்ல வேண்டும்?',
     'enter_pickup': 'பிக்அப் இடத்தை உள்ளிடவும்',
     'enter_dropoff': 'டிராப் இடத்தை உள்ளிடவும்',
@@ -1172,7 +1172,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   gu: {
     'app_name': 'ટેક્સી એપ (TaxiApp)',
-    'app_tagline': 'ઝડપી, સુરક્ષિત અને વિશ્વાસપાત્ર ટેક્સી સેવા',
+    'app_tagline': 'નજીકની ટેક્સી બુક કરો અથવા તમારી સવારી શેર કરીને કમાણી કરો.',
     'where_to': 'ક્યાં જવું છે?',
     'enter_pickup': 'પિકઅપ લોકેશન દાખલ કરો',
     'enter_dropoff': 'ડ્રોપ લોકેશન દાખલ કરો',
@@ -1349,7 +1349,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   kn: {
     'app_name': 'ಟ್ಯಾಕ್ಸಿ ಆಪ್ (TaxiApp)',
-    'app_tagline': 'ವೇಗದ, ಸುರಕ್ಷಿತ ಮತ್ತು ನಂಬಿಕಸ್ಥ ಟ್ಯಾಕ್ಸಿ ಸೇವೆ',
+    'app_tagline': 'ಹತ್ತಿರದ ಟ್ಯಾಕ್ಸಿ ಬುಕ್ ಮಾಡಿ ಅಥವಾ ನಿಮ್ಮ ರೈಡ್ ಹಂಚಿಕೊಳ್ಳುವ ಮೂಲಕ ಗಳಿಸಿ.',
     'where_to': 'ಎಲ್ಲಿಗೆ ಹೋಗಬೇಕು?',
     'enter_pickup': 'ಪಿಕಪ್ ಸ್ಥಳ ನಮೂದಿಸಿ',
     'enter_dropoff': 'ಡ್ರಾಪ್ ಸ್ಥಳ ನಮೂದಿಸಿ',
@@ -1526,7 +1526,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   ml: {
     'app_name': 'ടാക്സി ആപ്പ് (TaxiApp)',
-    'app_tagline': 'വേഗതയേറിയതും സുരക്ഷിതവുമായ ടാക്സി സേവനം',
+    'app_tagline': 'സമീപത്തുള്ള ടാക്സി ബുക്ക് ചെയ്യുക അല്ലെങ്കിൽ യാത്ര പങ്കിട്ട് സമ്പാദിക്കുക.',
     'where_to': 'എവിടേക്കാണ് പോകേണ്ടത്?',
     'enter_pickup': 'പിക്കപ്പ് ലൊക്കേഷൻ നൽകുക',
     'enter_dropoff': 'ഡ്രോപ്പ് ലൊക്കേഷൻ നൽകുക',
@@ -1703,7 +1703,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   pa: {
     'app_name': 'ਟੈਕਸੀ ਐਪ (TaxiApp)',
-    'app_tagline': 'ਤੇਜ਼, ਸੁਰੱਖਿਅਤ ਅਤੇ ਭਰੋਸੇਮੰਦ ਟੈਕਸੀ ਸੇਵਾ',
+    'app_tagline': 'ਨੇੜਲੀ ਟੈਕਸੀ ਬੁੱਕ ਕਰੋ ਜਾਂ ਆਪਣੀ ਰਾਈਡ ਸਾਂਝੀ ਕਰਕੇ ਕਮਾਓ।',
     'where_to': 'ਕਿੱਥੇ ਜਾਣਾ ਹੈ?',
     'enter_pickup': 'ਪਿਕਅੱਪ ਲੋਕੇਸ਼ਨ ਦਰਜ ਕਰੋ',
     'enter_dropoff': 'ਡ੍ਰੌਪ ਲੋਕੇਸ਼ਨ ਦਰਜ ਕਰੋ',
@@ -1880,7 +1880,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   or: {
     'app_name': 'ଟ୍ୟାକ୍ସି ଆପ୍ (TaxiApp)',
-    'app_tagline': 'ଦ୍ରୁତ, ସୁରକ୍ଷିତ ଏବଂ ନିର୍ଭରଯୋଗ୍ୟ ଟ୍ୟାକ୍ସି ସେବା',
+    'app_tagline': 'ନିକଟସ୍ଥ ଟ୍ୟାକ୍ସି ବୁକ୍ କରନ୍ତୁ କିମ୍ବା ରାଇଡ୍ ସେୟାର୍ କରି ରୋଜଗାର କରନ୍ତୁ।',
     'where_to': 'କେଉଁଆଡେ ଯିବେ?',
     'enter_pickup': 'ପିକଅପ୍ ସ୍ଥାନ ଦିଅନ୍ତୁ',
     'enter_dropoff': 'ଡ୍ରପ୍ ସ୍ଥାନ ଦିଅନ୍ତୁ',
@@ -2057,7 +2057,7 @@ export const DEFAULT_TRANSLATIONS: Record<string, TranslationDictionary> = {
   },
   ur: {
     'app_name': 'ٹیکسی ایپ (TaxiApp)',
-    'app_tagline': 'تیز، محفوظ اور قابل اعتماد ٹیکسی سروس',
+    'app_tagline': 'قریبی ٹیکسی بُک کریں یا اپنی رائیڈ شیئر کر کے کمائیں۔',
     'where_to': 'کہاں جانا ہے؟',
     'enter_pickup': 'پک اپ کا مقام درج کریں',
     'enter_dropoff': 'ڈراپ کا مقام درج کریں',

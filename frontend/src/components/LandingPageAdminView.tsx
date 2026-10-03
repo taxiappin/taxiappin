@@ -127,7 +127,7 @@ export const LandingPageAdminView: React.FC<LandingPageAdminViewProps> = ({ setT
     brandName: "TaxiApp",
     brandLogoEmoji: "🚖",
     heroTitle: "Fast, Reliable & Safe Taxi Rides Whenever You Need",
-    heroSubtitle: "Book local rides, instant airport transfers, outstation cab journeys, and executive cars with verified top-rated drivers.",
+    heroSubtitle: "Book a nearby taxi or earn by sharing yours.",
     ctaText: "Book Your Ride Now",
     heroImage: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=800",
     showBlogs: true,

@@ -1358,10 +1358,10 @@ export const BackendStyleGuide: React.FC<BackendStyleGuideProps> = ({ config, up
                 <label className="text-xs font-bold text-slate-700 block">Brand Sub-Tagline</label>
                 <input
                   type="text"
-                  value={branding.tagline || 'PREMIUM MOBILITY ECOSYSTEM'}
+                  value={branding.tagline || 'Book a nearby taxi or earn by sharing yours.'}
                   onChange={(e) => updateBrandingField('tagline', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
-                  placeholder="e.g. PREMIUM MOBILITY"
+                  placeholder="e.g. Book a nearby taxi or earn by sharing yours."
                 />
               </div>
 

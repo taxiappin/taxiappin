@@ -119,6 +119,7 @@ export const LoginSettingsView: React.FC<LoginSettingsViewProps> = ({
   );
 
   // Branding State
+  const [masterTagline, setMasterTagline] = useState(config.branding?.tagline || "Book a nearby taxi or earn by sharing yours.");
   const [promoTickerText, setPromoTickerText] = useState(config.branding?.promoTickerText || "Use promo code WELCOME50 to get flat ₹50 off on your very first ride booking! Travel safe with our premium certified hatchback and sedan partners.");
   const [logoText, setLogoText] = useState(config.branding?.logoText || config.branding?.textLogo || "TaxiApp");
   const [riderTextLogo, setRiderTextLogo] = useState(config.branding?.riderTextLogo || config.branding?.textLogo || "TaxiApp");
@@ -383,6 +384,7 @@ export const LoginSettingsView: React.FC<LoginSettingsViewProps> = ({
       ...config,
       branding: {
         ...(config.branding || {}),
+        tagline: masterTagline,
         promoTickerText,
         logoText,
         textLogo: logoText,
@@ -559,6 +561,8 @@ export const LoginSettingsView: React.FC<LoginSettingsViewProps> = ({
             <div className={showPreview ? "lg:col-span-7 space-y-6" : "lg:col-span-12 space-y-6"}>
               {activeTab === "branding" && (
                 <BrandingTab
+                  tagline={masterTagline}
+                  setTagline={setMasterTagline}
                   otpMode={otpMode}
                   setOtpMode={setOtpMode}
                   promoTickerText={promoTickerText}

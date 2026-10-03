@@ -272,7 +272,7 @@ export const LanguageAdminManager: React.FC<LanguageAdminManagerProps> = ({ onSa
               </div>
 
               <h3 className="text-xl font-black text-slate-900 leading-tight">
-                {draftTranslations[selectedTargetLang]?.app_tagline || englishDict['app_tagline'] || 'Fast, Reliable & Safe Taxi Service'}
+                {draftTranslations[selectedTargetLang]?.app_tagline || englishDict['app_tagline'] || 'Book a nearby taxi or earn by sharing yours.'}
               </h3>
 
               <div className="grid grid-cols-2 gap-3.5 pt-1">
@@ -518,7 +518,7 @@ export const LanguageAdminManager: React.FC<LanguageAdminManagerProps> = ({ onSa
               </div>
 
               <h3 className="text-2xl font-black text-white leading-tight">
-                {t('app_tagline', 'Fast, Reliable & Safe Taxi Service')}
+                {t('app_tagline', 'Book a nearby taxi or earn by sharing yours.')}
               </h3>
 
               <div className="grid grid-cols-2 gap-3 pt-2">

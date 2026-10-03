@@ -12572,9 +12572,9 @@ Thank you for choosing TaxiApp!`);
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-slate-700">Brand Tagline</label>
                           <input type="text"
-                            value={config.branding?.tagline || 'PREMIUM MOBILITY ECOSYSTEM'}
+                            value={config.branding?.tagline || 'Book a nearby taxi or earn by sharing yours.'}
                             onChange={(e) => updateConfig(prev => ({ ...prev, branding: { ...prev.branding!, tagline: e.target.value } }))}
-                            placeholder="e.g. PREMIUM MOBILITY ECOSYSTEM"
+                            placeholder="e.g. Book a nearby taxi or earn by sharing yours."
                             className="w-full bg-white border border-slate-250 text-sm font-bold rounded-lg p-2.5 outline-none focus:border-rose-500 text-slate-900"
                           />
                           <span className="text-[10px] text-slate-500 block">Displayed in sub-headers and splash screens globally.</span>

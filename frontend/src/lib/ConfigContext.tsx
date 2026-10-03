@@ -13,7 +13,7 @@ const DEFAULT_CONFIG: PlatformConfig = {
   landingPage: {
     enabled: true,
     heroTitle: "Fast, Reliable & Safe Taxi Rides Whenever You Need",
-    heroSubtitle: "Book local rides, instant airport transfers, outstation cab journeys, and carpool trips with verified top-rated drivers.",
+    heroSubtitle: "Book a nearby taxi or earn by sharing yours.",
     ctaText: "Book Your Ride Now",
     heroImage: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=800",
     showBlogs: true,
@@ -469,7 +469,7 @@ Join our green movement today by selecting the **EV Eco** category on your next 
     logoType: 'combined',
     logoHeight: 36,
     logoWithText: true,
-    tagline: 'PREMIUM MOBILITY ECOSYSTEM',
+    tagline: 'Book a nearby taxi or earn by sharing yours.',
     landingLogoUrl: '',
     landingDarkLogoUrl: '',
     appLogoUrl: '',
@@ -660,7 +660,7 @@ Join our green movement today by selecting the **EV Eco** category on your next 
     securityBadgeText: 'INSTANT & HIGHLY SECURE SETUP',
     primaryButtonText: 'DONE WITH INSTRUCTION →',
     secondaryButtonText: 'MAYBE LATER',
-    autoPushToUninstalled: true,
+    autoPushToUninstalled: false,
     forceDeviceView: 'auto'
   }
 };

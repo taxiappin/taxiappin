@@ -25,7 +25,7 @@ const DEFAULT_FEATURE_CARDS: LandingFeatureCard[] = [
     title: "Instant City Cabs & Auto Pickup",
     badge: "24/7 LIVE GPS",
     audience: "rider",
-    subtitle: "Book city rides, bike taxis, and auto-rickshaws in seconds with verified drivers near you.",
+    subtitle: "Book a nearby taxi or earn by sharing yours.",
     desc: "1-tap booking with real-time GPS tracking and guaranteed zero driver cancellations.",
     image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=1000",
     ctaText: "Book City Ride",
@@ -324,7 +324,7 @@ export const PublicLandingPageView: React.FC<PublicLandingPageViewProps> = ({
   useEffect(() => {
     const brand = landingConfig.brandName || (config as any)?.appName || "TaxiApp";
     let title = `${brand} - Instant Cab Booking, Ride Hailing & Fleet Operations`;
-    let desc = landingConfig.heroSubtitle || "Book instant city cabs, airport transfers, and outstation trips with verified drivers.";
+    let desc = landingConfig.heroSubtitle || "Book a nearby taxi or earn by sharing yours.";
     let keywords = landingConfig.seoKeywords || "taxi booking, cab app, ride hailing, driver partner, airport taxi";
 
     if (readingBlog) {

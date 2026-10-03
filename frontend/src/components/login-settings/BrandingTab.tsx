@@ -4,6 +4,8 @@ import { Upload, ImageIcon, X, Smartphone, User, Car, Sparkles, Moon, Sun, Shiel
 interface BrandingTabProps {
   promoTickerText: string;
   setPromoTickerText: (val: string) => void;
+  tagline?: string;
+  setTagline?: (val: string) => void;
   logoText: string;
   setLogoText: (val: string) => void;
   logoUrl: string;
@@ -59,6 +61,8 @@ interface BrandingTabProps {
 export const BrandingTab: React.FC<BrandingTabProps> = ({
   promoTickerText,
   setPromoTickerText,
+  tagline = "",
+  setTagline,
   logoText,
   setLogoText,
   logoUrl,
@@ -126,6 +130,28 @@ export const BrandingTab: React.FC<BrandingTabProps> = ({
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Configure distinct brand logos for General App, Rider Mode, and Driver Mode so users instantly recognize which mode they are using.
+          </p>
+        </div>
+
+        {/* 1. GLOBAL BRAND TAGLINE */}
+        <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles size={14} className="text-amber-500" /> Global Brand Tagline
+            </label>
+            <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider bg-amber-50 border border-amber-250 px-2 py-0.5 rounded-full">
+              Live Synchronized
+            </span>
+          </div>
+          <input
+            type="text"
+            value={tagline}
+            onChange={(e) => setTagline && setTagline(e.target.value)}
+            placeholder="e.g. Book a nearby taxi or earn by sharing yours."
+            className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-amber-500 shadow-2xs"
+          />
+          <p className="text-[11px] text-slate-500 font-medium">
+            This tagline appears across app headers, sub-headers, brand logos, splash preloader, and landing cards globally.
           </p>
         </div>
 
