@@ -65,7 +65,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   const platformName = config?.general?.platformName || 'TaxiApp';
 
   // 1. UNIFIED SINGLE LOGO RESOLUTION ACROSS THE ENTIRE APPLICATION:
-  // Showcases the official transparent Asset-14 SVG logo by default across the whole app.
+  // Showcases the official transparent ring SVG logo by default across the whole app.
   const singleUnifiedLogo = 
     branding.logoUrl ||
     branding.lightLogoUrl ||
@@ -77,7 +77,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     branding.driverLogoUrl ||
     (config as any)?.loginSettings?.logoUrl ||
     (config as any)?.appLogo ||
-    '/uploads/Asset-14.svg';
+    '/icon.svg';
 
   const currentIconUrl = singleUnifiedLogo;
   const currentHorizontalUrl = branding.horizontalLogoUrl || singleUnifiedLogo;
@@ -118,7 +118,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   // Determine alignment
   const isCentered = layout === 'centered' || layout === 'stacked' || align === 'center';
 
-  // Authentic transparent Asset-14 vector brand mark fallback
+  // Authentic transparent ring vector brand mark fallback
   const renderFallbackIcon = (size: number) => (
     <div
       style={{
@@ -129,13 +129,10 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       className="flex items-center justify-center shrink-0 transition-transform active:scale-95"
     >
       <img
-        src="/uploads/Asset-14.svg"
+        src="/icon.svg"
         alt={`${platformName} Brand Logo`}
         style={{ width: `${size}px`, height: `${size}px` }}
         className="object-contain w-full h-full bg-transparent"
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = '/icon.svg';
-        }}
       />
     </div>
   );
