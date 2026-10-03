@@ -138,23 +138,18 @@
   </head>
   <body>
     <div id="root">
-      <div style="position: fixed; inset: 0; background: #FAF7F2; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; z-index: 99999; user-select: none;">
-        <!-- TaxiApp Brand Logo Badge -->
-        <div style="position: relative; width: 92px; height: 92px; background: linear-gradient(135deg, #F59E0B, #D97706); border-radius: 28px; display: flex; align-items: center; justify-content: center; box-shadow: 0 16px 36px rgba(245, 158, 11, 0.35); border: 2px solid rgba(254, 243, 199, 0.4);">
-          <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
-            <circle cx="7" cy="17" r="2" fill="#0F172A"/>
-            <path d="M9 17h6"/>
-            <circle cx="17" cy="17" r="2" fill="#0F172A"/>
-          </svg>
+      <div style="position: fixed; inset: 0; background: #FAF7F2; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; z-index: 99999; user-select: none; text-align: center; width: 100vw; height: 100vh;">
+        <!-- TaxiApp Unified Brand Logo -->
+        <div style="position: relative; width: 88px; height: 88px; border-radius: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 16px 36px rgba(245, 158, 11, 0.35); overflow: hidden; margin: 0 auto;">
+          <img src="/icon.svg" alt="TaxiApp" style="width: 100%; height: 100%; object-fit: contain;" />
         </div>
         
-        <!-- Platform Name & Tagline -->
-        <div style="margin-top: 20px; font-size: 26px; font-weight: 900; color: #0F172A; letter-spacing: -0.5px;">TaxiApp</div>
-        <div style="margin-top: 4px; font-size: 11px; font-weight: 800; color: #78716C; text-transform: uppercase; letter-spacing: 2px;">Instant Cab Booking &amp; Fleet</div>
+        <!-- Platform Name & Tagline (Perfect Center Alignment) -->
+        <div style="margin-top: 18px; font-size: 26px; font-weight: 900; color: #0F172A; letter-spacing: -0.5px; text-align: center; width: 100%; display: block;">TaxiApp</div>
+        <div style="margin-top: 4px; font-size: 11px; font-weight: 800; color: #78716C; text-transform: uppercase; letter-spacing: 2px; text-align: center; width: 100%; display: block;">Instant Cab Booking &amp; Fleet</div>
         
         <!-- Smooth Progress Spinner -->
-        <div style="margin-top: 32px; width: 32px; height: 32px; border: 3px solid rgba(245, 158, 11, 0.2); border-top-color: #F59E0B; border-radius: 50%; animation: taxiappSpin 0.75s linear infinite;"></div>
+        <div style="margin-top: 28px; width: 32px; height: 32px; border: 3px solid rgba(245, 158, 11, 0.2); border-top-color: #F59E0B; border-radius: 50%; animation: taxiappSpin 0.75s linear infinite; margin-left: auto; margin-right: auto;"></div>
       </div>
       <style>
         @keyframes taxiappSpin {

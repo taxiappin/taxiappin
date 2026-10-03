@@ -1,6 +1,5 @@
 import React from 'react';
 import { PlatformConfig, AppBranding } from '../types';
-import { Navigation } from 'lucide-react';
 
 interface BrandLogoProps {
   config?: PlatformConfig;
@@ -65,40 +64,48 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 
   const platformName = config?.general?.platformName || 'TaxiApp';
 
-  let textLogo = branding.textLogo !== undefined ? branding.textLogo : platformName;
-  let taglineText = tagline !== undefined ? tagline : (branding.tagline || 'PREMIUM MOBILITY ECOSYSTEM');
+  // 1. UNIFIED SINGLE LOGO RESOLUTION ACROSS THE ENTIRE APPLICATION:
+  // Whatever is set in branding, app settings, or login settings reflects uniformly everywhere.
+  // If not set, falls back to the canonical /icon.svg.
+  const singleUnifiedLogo = 
+    branding.logoUrl ||
+    branding.lightLogoUrl ||
+    branding.appLogoUrl ||
+    branding.authLogoUrl ||
+    branding.landingLogoUrl ||
+    branding.backendLogoUrl ||
+    branding.riderLogoUrl ||
+    branding.driverLogoUrl ||
+    (config as any)?.loginSettings?.logoUrl ||
+    (config as any)?.appLogo ||
+    '/icon.svg';
+
+  const currentIconUrl = singleUnifiedLogo;
+  const currentHorizontalUrl = branding.horizontalLogoUrl || singleUnifiedLogo;
+  const faviconUrl = branding.faviconUrl || singleUnifiedLogo;
+
+  let textLogo = branding.textLogo !== undefined && branding.textLogo.trim() !== '' 
+    ? branding.textLogo 
+    : platformName;
+  let taglineText = tagline !== undefined 
+    ? tagline 
+    : (branding.tagline || 'PREMIUM MOBILITY ECOSYSTEM');
   let showText = showTextOverride !== undefined ? showTextOverride : (branding.logoWithText ?? true);
   let showTaglineText = showTagline;
 
   if (mode === 'rider') {
-    if (branding.riderTextLogo !== undefined) {
+    if (branding.riderTextLogo !== undefined && branding.riderTextLogo.trim() !== '') {
       textLogo = branding.riderTextLogo;
     }
-    if (branding.riderTagline !== undefined) {
+    if (branding.riderTagline !== undefined && branding.riderTagline.trim() !== '') {
       taglineText = branding.riderTagline;
-    } else if (tagline === undefined) {
-      taglineText = 'Rider';
-    }
-    if (branding.riderShowText !== undefined) {
-      showText = branding.riderShowText;
-    }
-    if (branding.riderShowTagline !== undefined) {
-      showTaglineText = branding.riderShowTagline;
     }
   } else if (mode === 'driver') {
-    if (branding.driverTextLogo !== undefined) {
+    if (branding.driverTextLogo !== undefined && branding.driverTextLogo.trim() !== '') {
       textLogo = branding.driverTextLogo;
     }
-    if (branding.driverTagline !== undefined) {
+    if (branding.driverTagline !== undefined && branding.driverTagline.trim() !== '') {
       taglineText = branding.driverTagline;
-    } else if (tagline === undefined) {
-      taglineText = 'Driver';
-    }
-    if (branding.driverShowText !== undefined) {
-      showText = branding.driverShowText;
-    }
-    if (branding.driverShowTagline !== undefined) {
-      showTaglineText = branding.driverShowTagline;
     }
   }
 
@@ -112,61 +119,31 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   // Determine alignment
   const isCentered = layout === 'centered' || layout === 'stacked' || align === 'center';
 
-  // Determine which image URL to use with mode and section fallback
-  let sectionLight = '';
-  let sectionDark = '';
-
-  if (mode === 'rider') {
-    sectionLight = branding.riderLogoUrl || '';
-    sectionDark = branding.riderDarkLogoUrl || '';
-  } else if (mode === 'driver') {
-    sectionLight = branding.driverLogoUrl || '';
-    sectionDark = branding.driverDarkLogoUrl || '';
-  }
-
-  if (!sectionLight && section === 'landing') {
-    sectionLight = branding.landingLogoUrl || '';
-    sectionDark = branding.landingDarkLogoUrl || '';
-  } else if (!sectionLight && section === 'app') {
-    sectionLight = branding.appLogoUrl || '';
-    sectionDark = branding.appDarkLogoUrl || '';
-  } else if (!sectionLight && section === 'backend') {
-    sectionLight = branding.backendLogoUrl || '';
-    sectionDark = branding.backendDarkLogoUrl || '';
-  } else if (!sectionLight && section === 'auth') {
-    sectionLight = branding.authLogoUrl || '';
-    sectionDark = branding.authDarkLogoUrl || '';
-  }
-
-  const lightIcon = sectionLight || branding.lightLogoUrl || branding.logoUrl;
-  const darkIcon = sectionDark || branding.darkLogoUrl || sectionLight || branding.lightLogoUrl || branding.logoUrl;
-  const currentIconUrl = isDark ? (darkIcon || lightIcon) : (lightIcon || darkIcon);
-
-  const lightHorizontal = branding.horizontalLogoUrl || lightIcon;
-  const darkHorizontal = branding.horizontalLogoDarkUrl || branding.horizontalLogoUrl || darkIcon;
-  const currentHorizontalUrl = isDark ? (darkHorizontal || lightHorizontal) : (lightHorizontal || darkHorizontal);
-
-  const faviconUrl = branding.faviconUrl || currentIconUrl;
-
-  // Fallback default SVG icon
+  // Authentic TaxiApp vector brand mark fallback (identical to /icon.svg)
   const renderFallbackIcon = (size: number) => (
     <div
       style={{
         width: `${size}px`,
         height: `${size}px`,
-        backgroundColor: branding.primaryColor || '#FAB818',
-        borderRadius: `${Math.min((branding.borderRadiusMd || 8) + 2, size / 2)}px`,
+        background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+        borderRadius: `${Math.min(size * 0.28, 20)}px`,
       }}
-      className="flex items-center justify-center shrink-0 shadow-md shadow-black/10 transition-transform active:scale-95"
+      className="flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25 border border-amber-300/40 transition-transform active:scale-95 overflow-hidden"
     >
-      <Navigation
-        style={{
-          width: `${Math.round(size * 0.55)}px`,
-          height: `${Math.round(size * 0.55)}px`,
-          color: '#0d5c56',
-        }}
-        className="fill-current transform -rotate-12"
-      />
+      <svg 
+        style={{ width: `${Math.round(size * 0.62)}px`, height: `${Math.round(size * 0.62)}px` }} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="#0F172A" 
+        strokeWidth="2.2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+      >
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+        <circle cx="7" cy="17" r="2" fill="#0F172A" />
+        <path d="M9 17h6" />
+        <circle cx="17" cy="17" r="2" fill="#0F172A" />
+      </svg>
     </div>
   );
 
@@ -184,6 +161,9 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
             style={{ width: `${calcHeight}px`, height: `${calcHeight}px` }}
             className="object-contain rounded-md shrink-0"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
         ) : (
           renderFallbackIcon(calcHeight)
@@ -197,16 +177,16 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     return (
       <div
         onClick={onClick}
-        className={`inline-flex flex-col ${isCentered ? 'items-center text-center' : 'items-start'} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        className={`inline-flex flex-col ${isCentered ? 'items-center text-center w-full' : 'items-start'} ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
-        <div className="flex items-center gap-1.5">
+        <div className={`flex items-center gap-1.5 ${isCentered ? 'justify-center w-full' : ''}`}>
           <span
             style={{
               fontSize: `${Math.max(14, Math.round(calcHeight * 0.55))}px`,
               fontFamily: logoFont,
               color: isDark ? '#ffffff' : (branding.textColor || '#0d5c56'),
             }}
-            className="font-black uppercase tracking-tight leading-none"
+            className="font-black uppercase tracking-tight leading-none text-center"
           >
             {textLogo}
           </span>
@@ -221,7 +201,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
               fontSize: `${Math.max(8, Math.round(calcHeight * 0.22))}px`,
               color: isDark ? 'rgba(255,255,255,0.6)' : (branding.textColorMuted || '#64748b'),
             }}
-            className="font-mono font-bold tracking-widest uppercase mt-0.5"
+            className={`font-mono font-bold tracking-widest uppercase mt-0.5 ${isCentered ? 'text-center w-full' : ''}`}
           >
             {taglineText}
           </span>
@@ -235,16 +215,19 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     return (
       <div
         onClick={onClick}
-        className={`inline-flex flex-col ${isCentered ? 'items-center text-center' : 'items-start'} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        className={`inline-flex flex-col ${isCentered ? 'items-center text-center w-full' : 'items-start'} ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
-        <div className="inline-flex items-center gap-2.5">
+        <div className={`inline-flex items-center gap-2.5 ${isCentered ? 'justify-center w-full' : ''}`}>
           {currentHorizontalUrl ? (
             <img
               src={currentHorizontalUrl}
-              alt={`${textLogo} Horizontal Logo`}
+              alt={`${textLogo} Logo`}
               style={{ height: `${calcHeight}px` }}
               className="object-contain max-w-full shrink-0"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/icon.svg';
+              }}
             />
           ) : (
             <div
@@ -292,7 +275,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     return (
       <div
         onClick={onClick}
-        className={`inline-flex flex-col ${isCentered ? 'items-center text-center' : 'items-start'} shrink-0 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        className={`inline-flex flex-col ${isCentered ? 'items-center text-center w-full' : 'items-start'} shrink-0 ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
         {currentIconUrl ? (
           <img
@@ -301,6 +284,9 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
             style={{ width: `${calcHeight}px`, height: `${calcHeight}px` }}
             className="object-contain rounded-xl shadow-xs shrink-0"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/icon.svg';
+            }}
           />
         ) : (
           renderFallbackIcon(calcHeight)
@@ -311,7 +297,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
               fontSize: `${Math.max(8, Math.round(calcHeight * 0.22))}px`,
               color: isDark ? 'rgba(255,255,255,0.6)' : (branding.textColorMuted || '#64748b'),
             }}
-            className="font-mono font-bold tracking-widest uppercase mt-1"
+            className="font-mono font-bold tracking-widest uppercase mt-1 text-center w-full"
           >
             {taglineText}
           </span>
@@ -320,36 +306,44 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     );
   }
 
-  // Centered or Stacked layout: Top (Icon + Text Logo), Bottom (Subline Tagline)
+  // Centered or Stacked layout: Top (Centered Icon), Bottom (Centered Text & Tagline)
+  // Perfectly aligned in the horizontal center of the screen
   if (isCentered) {
     return (
       <div
         onClick={onClick}
-        className={`inline-flex flex-col items-center justify-center text-center shrink-0 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        className={`flex flex-col items-center justify-center text-center w-full select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
-        {/* Top: Icon + Text Logo */}
-        <div className="inline-flex items-center justify-center gap-2.5">
+        {/* Centered Logo Icon */}
+        <div className="flex items-center justify-center mb-2.5 shrink-0">
           {currentIconUrl ? (
             <img
               src={currentIconUrl}
               alt={`${platformName} Logo`}
               style={{ width: `${calcHeight}px`, height: `${calcHeight}px` }}
-              className="object-contain rounded-xl shadow-xs shrink-0"
+              className="object-contain rounded-2xl shadow-sm shrink-0"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/icon.svg';
+              }}
             />
           ) : (
             renderFallbackIcon(calcHeight)
           )}
-          {renderText && (
-            <div className="flex items-center gap-2">
+        </div>
+
+        {/* Centered Text & Subline Tagline */}
+        {renderText && (
+          <div className="flex flex-col items-center justify-center text-center w-full space-y-0.5">
+            <div className="flex items-center justify-center gap-2 text-center w-full">
               {textLogo && (
                 <span
                   style={{
-                    fontSize: `${Math.max(14, Math.round(calcHeight * 0.52))}px`,
+                    fontSize: `${Math.max(16, Math.round(calcHeight * 0.52))}px`,
                     fontFamily: logoFont,
-                    color: isDark ? '#ffffff' : (branding.textColor || '#0d5c56'),
+                    color: isDark ? '#ffffff' : (branding.textColor || '#0F172A'),
                   }}
-                  className="font-black uppercase tracking-tight leading-none"
+                  className="font-black uppercase tracking-tight leading-none text-center"
                 >
                   {textLogo}
                 </span>
@@ -365,20 +359,19 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 </span>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Subline: Tagline comes below the icon and logo text */}
-        {showTaglineText && taglineText && (
-          <span
-            style={{
-              fontSize: `${Math.max(8, Math.round(calcHeight * 0.22))}px`,
-              color: isDark ? 'rgba(255,255,255,0.7)' : (branding.textColorMuted || '#64748b'),
-            }}
-            className="font-mono font-extrabold tracking-widest uppercase mt-1.5 opacity-90 block"
-          >
-            {taglineText}
-          </span>
+            {showTaglineText && taglineText && (
+              <span
+                style={{
+                  fontSize: `${Math.max(9, Math.round(calcHeight * 0.22))}px`,
+                  color: isDark ? 'rgba(255,255,255,0.7)' : (branding.textColorMuted || '#78716C'),
+                }}
+                className="font-mono font-extrabold tracking-widest uppercase mt-1 opacity-90 block text-center w-full"
+              >
+                {taglineText}
+              </span>
+            )}
+          </div>
         )}
       </div>
     );
@@ -388,7 +381,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`inline-flex items-center gap-2.5 shrink-0 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`inline-flex items-center gap-2.5 shrink-0 select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {currentIconUrl ? (
         <img
@@ -397,6 +390,9 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           style={{ width: `${calcHeight}px`, height: `${calcHeight}px` }}
           className="object-contain rounded-xl shadow-xs shrink-0"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = '/icon.svg';
+          }}
         />
       ) : (
         renderFallbackIcon(calcHeight)
@@ -410,7 +406,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 style={{
                   fontSize: `${Math.max(13, Math.round(calcHeight * 0.48))}px`,
                   fontFamily: logoFont,
-                  color: isDark ? '#ffffff' : (branding.textColor || '#0d5c56'),
+                  color: isDark ? '#ffffff' : (branding.textColor || '#0F172A'),
                 }}
                 className="font-black uppercase tracking-tight truncate"
               >
@@ -432,7 +428,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
             <span
               style={{
                 fontSize: `${Math.max(8, Math.round(calcHeight * 0.22))}px`,
-                color: isDark ? 'rgba(255,255,255,0.6)' : (branding.textColorMuted || '#64748b'),
+                color: isDark ? 'rgba(255,255,255,0.6)' : (branding.textColorMuted || '#78716C'),
               }}
               className="font-mono font-extrabold tracking-wider uppercase mt-0.5 truncate"
             >

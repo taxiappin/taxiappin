@@ -233,7 +233,8 @@ public class MainActivity extends Activity {
             logoImage.setImageResource(iconResId);
         }
         LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(220, 220);
-        logoParams.bottomMargin = 36;
+        logoParams.gravity = Gravity.CENTER_HORIZONTAL;
+        logoParams.bottomMargin = 24;
         logoImage.setLayoutParams(logoParams);
         splashLayout.addView(logoImage);
 
@@ -242,6 +243,14 @@ public class MainActivity extends Activity {
         titleText.setTextSize(26);
         titleText.setTypeface(Typeface.DEFAULT_BOLD);
         titleText.setTextColor(Color.parseColor("#0F172A"));
+        titleText.setGravity(Gravity.CENTER);
+        titleText.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        titleParams.gravity = Gravity.CENTER_HORIZONTAL;
+        titleText.setLayoutParams(titleParams);
         splashLayout.addView(titleText);
 
         TextView subText = new TextView(this);
@@ -249,12 +258,15 @@ public class MainActivity extends Activity {
         subText.setTextSize(11);
         subText.setTypeface(Typeface.DEFAULT_BOLD);
         subText.setTextColor(Color.parseColor("#78716C"));
+        subText.setGravity(Gravity.CENTER);
+        subText.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
         LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, 
+            LinearLayout.LayoutParams.MATCH_PARENT, 
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        subParams.topMargin = 10;
-        subParams.bottomMargin = 50;
+        subParams.gravity = Gravity.CENTER_HORIZONTAL;
+        subParams.topMargin = 8;
+        subParams.bottomMargin = 42;
         subText.setLayoutParams(subParams);
         splashLayout.addView(subText);
 

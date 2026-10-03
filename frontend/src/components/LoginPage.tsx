@@ -2713,24 +2713,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </div>
             )}
             {/* App Logo & Centered Tagline Subline */}
-            <div className="flex items-center justify-center gap-2.5 mb-3.5 w-full">
-              {loginSettings?.logoUrl ? (
-                <div className="flex flex-col items-center justify-center gap-1 text-center">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs border border-amber-500/40 shrink-0 overflow-hidden">
-                      <img src={loginSettings.logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                    </div>
-                    <span className="text-xl font-black uppercase tracking-[0.12em] text-slate-900 font-sans">
-                      {loginSettings?.logoText || config.branding?.textLogo || config.general?.platformName || "Taxiapp"}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono font-extrabold tracking-widest text-slate-500 uppercase mt-0.5">
-                    {config.branding?.tagline || "PREMIUM MOBILITY ECOSYSTEM"}
-                  </span>
-                </div>
-              ) : (
-                <BrandLogo config={config} section="auth" isDark={false} layout="centered" height={42} mode="auto" />
-              )}
+            <div className="flex items-center justify-center mb-4 w-full text-center">
+              <BrandLogo config={config} section="auth" isDark={false} layout="centered" height={52} mode="auto" />
             </div>
             
             {/* Heading (Left Aligned) - Hidden in reset mode */}

@@ -13,7 +13,7 @@
       "format": ".apk",
       "sizeBytes": 21297,
       "sizeMb": "0.02",
-      "sha256": "2a06a381ce764a56857b0c4a7b5280c633acb8248b6391d82d4613761c3b9a70",
+      "sha256": "aa14ecce53085797a91c852900d5f304c1cb2a781cd5f215eb766e3e19f3a7b8",
       "channel": "handset-sideload",
       "description": "Valid signed release APK with native TaxiApp splash and verified parsing.",
       "downloadUrl": "/api/capacitor/download/release-apk"
@@ -25,7 +25,7 @@
       "format": ".apk",
       "sizeBytes": 21297,
       "sizeMb": "0.02",
-      "sha256": "2a06a381ce764a56857b0c4a7b5280c633acb8248b6391d82d4613761c3b9a70",
+      "sha256": "aa14ecce53085797a91c852900d5f304c1cb2a781cd5f215eb766e3e19f3a7b8",
       "channel": "qa-testing",
       "description": "Debug APK for internal developer and QA testing.",
       "downloadUrl": "/api/capacitor/download/debug-apk"
@@ -37,7 +37,7 @@
       "format": ".aab",
       "sizeBytes": 21297,
       "sizeMb": "0.02",
-      "sha256": "2a06a381ce764a56857b0c4a7b5280c633acb8248b6391d82d4613761c3b9a70",
+      "sha256": "aa14ecce53085797a91c852900d5f304c1cb2a781cd5f215eb766e3e19f3a7b8",
       "channel": "google-play-store",
       "description": "Android App Bundle package for Google Play Store upload.",
       "downloadUrl": "/api/capacitor/download/release-aab"
