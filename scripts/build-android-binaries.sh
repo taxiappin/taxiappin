@@ -3,6 +3,16 @@ set -e
 
 echo "=== TaxiApp Real Android APK & Binary Builder ==="
 
+TARGET_SERVER_URL="${1:-${APP_SERVER_URL:-https://taxiapp.in}}"
+if [[ "$TARGET_SERVER_URL" != *"installed=true"* ]]; then
+  if [[ "$TARGET_SERVER_URL" == *"?"* ]]; then
+    TARGET_SERVER_URL="${TARGET_SERVER_URL}&installed=true&source=mobile_app"
+  else
+    TARGET_SERVER_URL="${TARGET_SERVER_URL}?installed=true&source=mobile_app"
+  fi
+fi
+echo "Target Server URL configured for APK: $TARGET_SERVER_URL"
+
 BUILD_DIR="/tmp/taxiapp_android_build"
 OUT_DIR="$(pwd)/mobile-packages/generated-binaries"
 KEYSTORE_PATH="$(pwd)/mobile-packages/release.keystore"
@@ -188,7 +198,7 @@ import android.content.pm.PackageManager;
 public class MainActivity extends Activity {
     private WebView webView;
     private LinearLayout splashLayout;
-    private static final String APP_URL = "https://ais-pre-rx7h73tgped77arr6vd5w4-386217356005.asia-southeast1.run.app?installed=true&source=mobile_app";
+    private static final String APP_URL = "%%APP_URL%%";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -339,6 +349,8 @@ public class MainActivity extends Activity {
     }
 }
 EOF
+
+sed -i "s|%%APP_URL%%|$TARGET_SERVER_URL|g" "$BUILD_DIR/src/com/taxiapp/users/MainActivity.java"
 
 mkdir -p "$BUILD_DIR/classes"
 javac -source 8 -target 8 -cp "$ANDROID_JAR" -d "$BUILD_DIR/classes" "$BUILD_DIR/src/com/taxiapp/users/MainActivity.java"
