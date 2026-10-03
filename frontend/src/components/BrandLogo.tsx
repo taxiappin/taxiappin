@@ -49,13 +49,13 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     borderWidth: 1,
     spacingDensity: 'comfortable',
     headingStyle: 'normal',
-    logoUrl: '',
-    darkLogoUrl: '',
-    lightLogoUrl: '',
+    logoUrl: '/uploads/Asset-14.svg',
+    darkLogoUrl: '/uploads/Asset-14.svg',
+    lightLogoUrl: '/uploads/Asset-14.svg',
     textLogo: 'TaxiApp',
-    horizontalLogoUrl: '',
-    horizontalLogoDarkUrl: '',
-    faviconUrl: '',
+    horizontalLogoUrl: '/uploads/Asset-14.svg',
+    horizontalLogoDarkUrl: '/uploads/Asset-14.svg',
+    faviconUrl: '/uploads/Asset-14.svg',
     logoType: 'combined',
     logoHeight: 36,
     logoWithText: true,
@@ -65,8 +65,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   const platformName = config?.general?.platformName || 'TaxiApp';
 
   // 1. UNIFIED SINGLE LOGO RESOLUTION ACROSS THE ENTIRE APPLICATION:
-  // Whatever is set in branding, app settings, or login settings reflects uniformly everywhere.
-  // If not set, falls back to the canonical /icon.svg.
+  // Showcases the official transparent Asset-14 SVG logo by default across the whole app.
   const singleUnifiedLogo = 
     branding.logoUrl ||
     branding.lightLogoUrl ||
@@ -78,7 +77,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     branding.driverLogoUrl ||
     (config as any)?.loginSettings?.logoUrl ||
     (config as any)?.appLogo ||
-    '/icon.svg';
+    '/uploads/Asset-14.svg';
 
   const currentIconUrl = singleUnifiedLogo;
   const currentHorizontalUrl = branding.horizontalLogoUrl || singleUnifiedLogo;
@@ -119,31 +118,25 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   // Determine alignment
   const isCentered = layout === 'centered' || layout === 'stacked' || align === 'center';
 
-  // Authentic TaxiApp vector brand mark fallback (identical to /icon.svg)
+  // Authentic transparent Asset-14 vector brand mark fallback
   const renderFallbackIcon = (size: number) => (
     <div
       style={{
         width: `${size}px`,
         height: `${size}px`,
-        background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-        borderRadius: `${Math.min(size * 0.28, 20)}px`,
+        backgroundColor: 'transparent',
       }}
-      className="flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25 border border-amber-300/40 transition-transform active:scale-95 overflow-hidden"
+      className="flex items-center justify-center shrink-0 transition-transform active:scale-95"
     >
-      <svg 
-        style={{ width: `${Math.round(size * 0.62)}px`, height: `${Math.round(size * 0.62)}px` }} 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="#0F172A" 
-        strokeWidth="2.2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      >
-        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-        <circle cx="7" cy="17" r="2" fill="#0F172A" />
-        <path d="M9 17h6" />
-        <circle cx="17" cy="17" r="2" fill="#0F172A" />
-      </svg>
+      <img
+        src="/uploads/Asset-14.svg"
+        alt={`${platformName} Brand Logo`}
+        style={{ width: `${size}px`, height: `${size}px` }}
+        className="object-contain w-full h-full bg-transparent"
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = '/icon.svg';
+        }}
+      />
     </div>
   );
 
@@ -152,17 +145,17 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     return (
       <div
         onClick={onClick}
-        className={`inline-flex items-center justify-center ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        className={`inline-flex items-center justify-center bg-transparent ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
         {faviconUrl ? (
           <img
             src={faviconUrl}
             alt={`${platformName} Favicon`}
             style={{ width: `${calcHeight}px`, height: `${calcHeight}px` }}
-            className="object-contain rounded-md shrink-0"
+            className="object-contain bg-transparent shrink-0"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).src = '/uploads/Asset-14.svg';
             }}
           />
         ) : (
@@ -223,23 +216,21 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
               src={currentHorizontalUrl}
               alt={`${textLogo} Logo`}
               style={{ height: `${calcHeight}px` }}
-              className="object-contain max-w-full shrink-0"
+              className="object-contain max-w-full bg-transparent shrink-0"
               referrerPolicy="no-referrer"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/icon.svg';
+                (e.target as HTMLImageElement).src = '/uploads/Asset-14.svg';
               }}
             />
           ) : (
             <div
               style={{
                 height: `${calcHeight}px`,
-                borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
-                backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                borderRadius: `${branding.borderRadiusMd || 8}px`,
+                backgroundColor: 'transparent',
               }}
-              className="flex items-center gap-2.5 px-3 py-1 border shadow-2xs shrink-0"
+              className="flex items-center gap-2.5 px-1 py-1 shrink-0"
             >
-              {renderFallbackIcon(Math.round(calcHeight * 0.75))}
+              {renderFallbackIcon(Math.round(calcHeight * 0.85))}
               <div className="flex flex-col leading-none">
                 <span
                   style={{
@@ -275,17 +266,17 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     return (
       <div
         onClick={onClick}
-        className={`inline-flex flex-col ${isCentered ? 'items-center text-center w-full' : 'items-start'} shrink-0 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        className={`inline-flex flex-col ${isCentered ? 'items-center text-center w-full' : 'items-start'} shrink-0 bg-transparent ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
         {currentIconUrl ? (
           <img
             src={currentIconUrl}
             alt={`${platformName} Logo`}
             style={{ width: `${calcHeight}px`, height: `${calcHeight}px` }}
-            className="object-contain rounded-xl shadow-xs shrink-0"
+            className="object-contain bg-transparent shrink-0"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = '/icon.svg';
+              (e.target as HTMLImageElement).src = '/uploads/Asset-14.svg';
             }}
           />
         ) : (
@@ -307,24 +298,24 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   }
 
   // Centered or Stacked layout: Top (Centered Icon), Bottom (Centered Text & Tagline)
-  // Perfectly aligned in the horizontal center of the screen
+  // Perfectly aligned in the horizontal center of the screen with transparent logo
   if (isCentered) {
     return (
       <div
         onClick={onClick}
-        className={`flex flex-col items-center justify-center text-center w-full select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        className={`flex flex-col items-center justify-center text-center w-full select-none bg-transparent ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
-        {/* Centered Logo Icon */}
-        <div className="flex items-center justify-center mb-2.5 shrink-0">
+        {/* Centered Logo Icon with transparent background */}
+        <div className="flex items-center justify-center mb-2.5 shrink-0 bg-transparent">
           {currentIconUrl ? (
             <img
               src={currentIconUrl}
               alt={`${platformName} Logo`}
               style={{ width: `${calcHeight}px`, height: `${calcHeight}px` }}
-              className="object-contain rounded-2xl shadow-sm shrink-0"
+              className="object-contain bg-transparent shrink-0"
               referrerPolicy="no-referrer"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/icon.svg';
+                (e.target as HTMLImageElement).src = '/uploads/Asset-14.svg';
               }}
             />
           ) : (
@@ -381,17 +372,17 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`inline-flex items-center gap-2.5 shrink-0 select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`inline-flex items-center gap-2.5 shrink-0 select-none bg-transparent ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {currentIconUrl ? (
         <img
           src={currentIconUrl}
           alt={`${platformName} Logo`}
           style={{ width: `${calcHeight}px`, height: `${calcHeight}px` }}
-          className="object-contain rounded-xl shadow-xs shrink-0"
+          className="object-contain bg-transparent shrink-0"
           referrerPolicy="no-referrer"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = '/icon.svg';
+            (e.target as HTMLImageElement).src = '/uploads/Asset-14.svg';
           }}
         />
       ) : (
