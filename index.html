@@ -140,9 +140,11 @@
   <body>
     <div id="root">
       <div id="taxiapp-preloader" style="position: fixed; inset: 0; background: #FAF7F2; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; z-index: 99999; user-select: none; text-align: center; width: 100vw; height: 100vh;">
-        <!-- TaxiApp Official Transparent Ring Brand Logo -->
+        <!-- TaxiApp Official Transparent Ring Brand Logo (Inline SVG to bypass any cache) -->
         <div style="position: relative; width: 92px; height: 92px; display: flex; align-items: center; justify-content: center; margin: 0 auto; background: transparent;">
-          <img src="/icon.svg" alt="TaxiApp" style="width: 100%; height: 100%; object-fit: contain; background: transparent;" />
+          <svg width="92" height="92" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 92px; height: 92px; background: transparent;">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M 256 26 C 383.025 26 486 128.975 486 256 C 486 383.025 383.025 486 256 486 C 128.975 486 26 383.025 26 256 C 26 128.975 128.975 26 256 26 Z M 256 128 C 185.308 128 128 185.308 128 256 C 128 326.692 185.308 384 256 384 C 326.692 384 384 326.692 384 256 C 384 185.308 326.692 128 256 128 Z" fill="#EEA51B"/>
+          </svg>
         </div>
         
         <!-- Platform Name & Tagline (Perfect Center Alignment) -->
