@@ -11327,6 +11327,14 @@ export default function App() {
 
   useEffect(() => {
     initPwaTelemetry();
+    // Dismiss native Android splash when React application finishes loading
+    if (typeof window !== "undefined" && (window as any).AndroidBridge?.hideSplash) {
+      try {
+        (window as any).AndroidBridge.hideSplash();
+      } catch (e) {
+        console.error("Error dismissing native splash:", e);
+      }
+    }
   }, []);
 
   const parsePathnameToState = (pathname: string) => {

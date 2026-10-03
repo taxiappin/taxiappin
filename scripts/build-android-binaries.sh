@@ -35,84 +35,19 @@ if [ ! -f "$R8_JAR" ]; then
   curl -s -L -o "$R8_JAR" "https://dl.google.com/dl/android/maven2/com/android/tools/r8/8.2.42/r8-8.2.42.jar"
 fi
 
-# 2. Generate valid PNG launcher icons using Python
-echo "Generating valid binary PNG launcher icons..."
-python3 - << 'EOF'
-import struct, zlib, os
+# 2. Install official high-resolution TaxiApp brand icons
+echo "Installing official high-resolution TaxiApp brand icons..."
+mkdir -p "$BUILD_DIR/res/drawable-mdpi"
+mkdir -p "$BUILD_DIR/res/drawable-hdpi"
+mkdir -p "$BUILD_DIR/res/drawable-xhdpi"
+mkdir -p "$BUILD_DIR/res/drawable-xxhdpi"
+mkdir -p "$BUILD_DIR/res/drawable-xxxhdpi"
 
-def create_taxiapp_png(size, filename):
-    raw = bytearray()
-    r_corner = size * 0.22
-    hw = size/2 - size * 0.04
-    
-    for y in range(size):
-        raw.append(0) # Filter type 0
-        for x in range(size):
-            dx = x - size/2
-            dy = y - size/2
-            
-            qx = abs(dx) - (hw - r_corner)
-            qy = abs(dy) - (hw - r_corner)
-            
-            inside = False
-            if qx <= 0 or qy <= 0:
-                inside = (abs(dx) <= hw and abs(dy) <= hw)
-            else:
-                inside = (qx*qx + qy*qy <= r_corner*r_corner)
-                
-            if inside:
-                nx = dx / (size/2)
-                ny = dy / (size/2)
-                
-                is_taxi_light = (-0.22 <= nx <= 0.22 and -0.52 <= ny <= -0.42)
-                is_cabin = (-0.48 <= nx <= 0.48 and -0.42 <= ny <= -0.05) and (abs(nx) <= 0.55 - (ny + 0.42)*0.2)
-                is_window = (-0.40 <= nx <= 0.40 and -0.38 <= ny <= -0.10)
-                is_body = (-0.72 <= nx <= 0.72 and -0.05 <= ny <= 0.32)
-                dw1 = ((nx - (-0.44))**2 + (ny - 0.34)**2)**0.5
-                dw2 = ((nx - (0.44))**2 + (ny - 0.34)**2)**0.5
-                is_wheel = (dw1 <= 0.16 or dw2 <= 0.16)
-                is_wheel_rim = (dw1 <= 0.08 or dw2 <= 0.08)
-                is_headlight = (0.20 <= ny <= 0.28 and (0.60 <= nx <= 0.70 or -0.70 <= nx <= -0.60))
-
-                if is_wheel_rim:
-                    raw.extend([245, 158, 11, 255])
-                elif is_wheel:
-                    raw.extend([15, 23, 42, 255])
-                elif is_taxi_light:
-                    raw.extend([15, 23, 42, 255])
-                elif is_window:
-                    raw.extend([254, 243, 199, 255])
-                elif is_headlight:
-                    raw.extend([255, 255, 255, 255])
-                elif is_cabin or is_body:
-                    raw.extend([15, 23, 42, 255])
-                else:
-                    dist_c = (nx*nx + ny*ny)**0.5
-                    r = int(245 - dist_c * 20)
-                    g = int(158 - dist_c * 20)
-                    raw.extend([max(0, r), max(0, g), 11, 255])
-            else:
-                raw.extend([0, 0, 0, 0])
-
-    def chunk(tag, data):
-        c = struct.pack(">I", len(data)) + tag + data
-        crc = zlib.crc32(tag + data) & 0xffffffff
-        return c + struct.pack(">I", crc)
-
-    ihdr = struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0)
-    idat = zlib.compress(bytes(raw), 9)
-    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    with open(filename, "wb") as f:
-        f.write(png)
-
-base = "/tmp/taxiapp_android_build/res"
-create_taxiapp_png(48, f"{base}/drawable-mdpi/ic_launcher.png")
-create_taxiapp_png(72, f"{base}/drawable-hdpi/ic_launcher.png")
-create_taxiapp_png(96, f"{base}/drawable-xhdpi/ic_launcher.png")
-create_taxiapp_png(144, f"{base}/drawable-xxhdpi/ic_launcher.png")
-create_taxiapp_png(192, f"{base}/drawable-xxxhdpi/ic_launcher.png")
-EOF
+cp "$(pwd)/frontend/public/pwa_icon_192.png" "$BUILD_DIR/res/drawable-mdpi/ic_launcher.png"
+cp "$(pwd)/frontend/public/pwa_icon_192.png" "$BUILD_DIR/res/drawable-hdpi/ic_launcher.png"
+cp "$(pwd)/frontend/public/pwa_icon_192.png" "$BUILD_DIR/res/drawable-xhdpi/ic_launcher.png"
+cp "$(pwd)/frontend/public/pwa_icon_192.png" "$BUILD_DIR/res/drawable-xxhdpi/ic_launcher.png"
+cp "$(pwd)/frontend/public/pwa_icon_512.png" "$BUILD_DIR/res/drawable-xxxhdpi/ic_launcher.png"
 
 # 3. Create values/strings.xml
 mkdir -p "$BUILD_DIR/res/values"
@@ -293,20 +228,37 @@ public class MainActivity extends Activity {
         // Hardware acceleration & User-Agent identification
         webView.getSettings().setUserAgentString(settings.getUserAgentString() + " TaxiAppNative/2.5.0");
 
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                view.loadUrl(url);
-                return true;
+        // Javascript interface so React signals when app has mounted -> dismisses splash once
+        webView.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void hideSplash() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (splashLayout != null && splashLayout.getVisibility() == View.VISIBLE) {
+                            splashLayout.animate()
+                                .alpha(0.0f)
+                                .setDuration(250)
+                                .withEndAction(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        splashLayout.setVisibility(View.GONE);
+                                    }
+                                });
+                        }
+                    }
+                });
             }
+        }, "AndroidBridge");
 
+        // Safety fallback: if network is slow, auto-dismiss splash after 3.5s
+        new android.os.Handler().postDelayed(new Runnable() {
             @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                if (splashLayout != null) {
+            public void run() {
+                if (splashLayout != null && splashLayout.getVisibility() == View.VISIBLE) {
                     splashLayout.animate()
                         .alpha(0.0f)
-                        .setDuration(300)
+                        .setDuration(250)
                         .withEndAction(new Runnable() {
                             @Override
                             public void run() {
@@ -314,6 +266,14 @@ public class MainActivity extends Activity {
                             }
                         });
                 }
+            }
+        }, 3500);
+
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                view.loadUrl(url);
+                return true;
             }
         });
 
