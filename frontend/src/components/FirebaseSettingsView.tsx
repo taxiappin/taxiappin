@@ -735,8 +735,8 @@ export const FirebaseSettingsView: React.FC<FirebaseSettingsViewProps> = ({
                   While our PWA with Service Worker Push &amp; FCM delivers lock-screen notifications reliably, if you plan to publish a native APK on the Google Play Store or Apple App Store:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-[11px] pl-1">
-                  <li><strong>TWA (Trusted Web Activity) / Capacitor:</strong> Wraps this exact web codebase into a native Android APK with <code>@capacitor/push-notifications</code> and background services.</li>
-                  <li><strong>Foreground Service:</strong> Keeps the driver GPS and instant ride radar alive continuously with an active status bar notification icon.</li>
+                  <li><strong>Standard Web Push &amp; FCM:</strong> Uses the browser Service Worker and Firebase Cloud Messaging for native lock-screen push alerts on Android, iOS (16.4+), Windows, and macOS.</li>
+                  <li><strong>Background GPS &amp; Wake Lock:</strong> Keeps driver navigation and real-time trip synchronization responsive with active WebSocket presence and PWA sync.</li>
                 </ul>
               </div>
             )}

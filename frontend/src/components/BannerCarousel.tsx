@@ -8,13 +8,13 @@ import { useConfig } from '../lib/ConfigContext';
 interface BannerCarouselProps {
   banners: AppBanner[];
   className?: string;
-  onDownloadApk?: () => void;
+  onInstallApp?: () => void;
 }
 
 export const BannerCarousel: React.FC<BannerCarouselProps> = ({ 
   banners, 
   className,
-  onDownloadApk
+  onInstallApp
 }) => {
   const { config } = useConfig();
 
@@ -49,34 +49,26 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
 
   if (activeBanners.length === 0 || !currentBanner) return null;
 
-  const triggerDirectApkDownload = () => {
-    try {
-      const link = document.createElement('a');
-      link.href = '/api/mobile/download-apk/release';
-      link.setAttribute('download', 'taxiapp-v2.0.4-release.apk');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.warn("Direct link click failed, falling back to window.location", err);
-      window.location.href = '/api/mobile/download-apk/release';
+  const triggerAppInstall = () => {
+    if (onInstallApp) {
+      onInstallApp();
+      return;
     }
-
-    if (onDownloadApk) {
-      onDownloadApk();
-    }
+    // Dispatch PWA install prompt event
+    window.dispatchEvent(new CustomEvent('show-pwa-install'));
   };
 
   const handleBannerClick = (banner: AppBanner) => {
     if (
       banner.url === 'download-apk' || 
-      banner.url === '/api/mobile/download-apk/release' || 
+      banner.url === 'install-app' ||
       banner.url?.includes('download-apk') ||
-      banner.title?.toLowerCase().includes('download apk') ||
-      banner.title?.toLowerCase().includes('download the app') ||
-      banner.buttonText?.toLowerCase().includes('download')
+      banner.title?.toLowerCase().includes('download') ||
+      banner.title?.toLowerCase().includes('install') ||
+      banner.buttonText?.toLowerCase().includes('download') ||
+      banner.buttonText?.toLowerCase().includes('install')
     ) {
-      triggerDirectApkDownload();
+      triggerAppInstall();
       return;
     }
 
@@ -141,11 +133,11 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     if (
-                      currentBanner.url?.includes('apk') || 
-                      currentBanner.buttonText?.toLowerCase().includes('apk') || 
+                      currentBanner.url?.includes('install') || 
+                      currentBanner.buttonText?.toLowerCase().includes('install') || 
                       currentBanner.buttonText?.toLowerCase().includes('download')
                     ) {
-                      triggerDirectApkDownload();
+                      triggerAppInstall();
                     } else {
                       handleBannerClick(currentBanner);
                     }

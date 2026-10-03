@@ -273,6 +273,14 @@ export const PublicLandingPageView: React.FC<PublicLandingPageViewProps> = ({
   onOpenDriverLogin
 }) => {
   const { config } = useConfig();
+  const isInstalledOnMobile = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true ||
+    window.navigator.userAgent.toLowerCase().includes('taxiappnative') ||
+    window.location.search.includes('installed=true') ||
+    window.location.search.includes('source=mobile_app') ||
+    localStorage.getItem('taxiapp_installed') === 'true'
+  );
   const landingConfig: LandingPageConfig = config.landingPage || {
     enabled: true,
     brandName: "TaxiApp",
@@ -648,26 +656,22 @@ export const PublicLandingPageView: React.FC<PublicLandingPageViewProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    const link = document.createElement('a');
-                    link.href = '/api/mobile/download-apk/release';
-                    link.setAttribute('download', 'taxiapp-v2.0.4-release.apk');
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  } catch (err) {
-                    window.location.href = '/api/mobile/download-apk/release';
-                  }
-                }}
-                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
-                title="Download the App"
-              >
-                <Download size={13} />
-                <span>Download the App</span>
-              </button>
+              {!isInstalledOnMobile && (
+                <a
+                  href="/api/capacitor/download/release-apk"
+                  download="taxiapp-v2.5.0-release.apk"
+                  onClick={() => {
+                    try {
+                      localStorage.setItem('taxiapp_installed', 'true');
+                    } catch (e) {}
+                  }}
+                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
+                  title="Install TaxiApp on mobile"
+                >
+                  <Download size={13} />
+                  <span>Install App</span>
+                </a>
+              )}
 
               <button
                 onClick={onOpenRiderLogin || onLaunchApp}

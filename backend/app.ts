@@ -10,7 +10,7 @@ import tripRoutes from "./src/routes/trip.routes";
 import rideRoutes from "./src/routes/ride.routes";
 import walletRoutes from "./src/routes/wallet.routes";
 import pushRoutes from "./src/routes/push.routes";
-import mobileRoutes from "./src/routes/mobile.routes";
+import { capacitorRouter } from "./src/routes/capacitor.routes";
 
 export async function createApp() {
   const app = express();
@@ -154,10 +154,10 @@ Sitemap: ${sitemapUrl}
   // API Routes mount
   app.use("/api/auth", authRoutes);
   app.use("/api/admin", adminRoutes);
-  app.use("/api/mobile", mobileRoutes);
   app.use("/api/push", pushRoutes);
   app.use("/api/rides", rideRoutes);
   app.use("/api/wallet", walletRoutes);
+  app.use("/api/capacitor", capacitorRouter);
   app.use("/api", tripRoutes);
 
   // Global Error Handler

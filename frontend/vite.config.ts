@@ -19,30 +19,42 @@ export default defineConfig(({ mode }) => {
         srcDir: 'src',
         filename: 'sw.ts',
         registerType: 'autoUpdate',
-        includeAssets: ['icon.svg'],
+        includeAssets: ['icon.svg', 'apple-touch-icon.png', 'favicon.png', 'pwa_icon_192.png', 'pwa_icon_512.png'],
         manifest: {
-          name: 'TaxiApp',
+          id: '/',
+          name: 'TaxiApp - Instant Cab Booking & Fleet Operations',
           short_name: 'TaxiApp',
-          description: 'Premium Ride Sharing & Carpooling Experience',
+          description: 'Book instant rides, daily cabs, airport transfers, and outstation trips with verified drivers, transparent fares, live GPS tracking, and secure digital payments.',
           start_url: '/',
+          scope: '/',
           display: 'standalone',
           orientation: 'portrait',
-          background_color: '#ffffff',
-          theme_color: '#111111',
+          background_color: '#FAF7F2',
+          theme_color: '#F59E0B',
           icons: [
             {
-              src: '/icon.svg',
+              src: '/pwa_icon_192.png',
               sizes: '192x192',
-              type: 'image/svg+xml',
+              type: 'image/png',
               purpose: 'any'
             },
             {
-              src: '/icon.svg',
+              src: '/pwa_icon_512.png',
               sizes: '512x512',
-              type: 'image/svg+xml',
+              type: 'image/png',
               purpose: 'any'
+            },
+            {
+              src: '/pwa_icon_512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
+        },
+        devOptions: {
+          enabled: true,
+          type: 'module',
         },
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],

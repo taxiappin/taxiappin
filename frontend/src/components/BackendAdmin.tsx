@@ -45,6 +45,7 @@ import { FlowsDashboardView } from './FlowsDashboardView';
 import { BlogAdminView } from './BlogAdminView';
 import { LandingPageAdminView } from './LandingPageAdminView';
 import { PwaAdminView } from './PwaAdminView';
+import { CapacitorAdminView } from './CapacitorAdminView';
 import { MapSettingsAdminView } from './MapSettingsAdminView';
 import { AdsNetworksAdminView } from './AdsNetworksAdminView';
 import { BackendStaffLogin } from './BackendStaffLogin';
@@ -2457,6 +2458,7 @@ export const BackendAdmin = ({ onOpenFrontend }: { onOpenFrontend?: () => void }
       vps_preview: true,
       github_sync: true,
       pwa: true,
+      capacitor: true,
     };
   });
 
@@ -5652,6 +5654,7 @@ Thank you for choosing TaxiApp!`);
       title: "PROMOTION MANAGEMENT",
       items: [
         { id: 'pwa', label: 'PWA & Version Control', icon: Smartphone, badge: 'PWA' },
+        { id: 'capacitor', label: 'Capacitor Mobile Hub', icon: Cpu, badge: 'APK / AAB' },
         { id: 'events', label: 'Events', icon: Calendar },
         { id: 'push_notifications', label: 'Push Notifications', icon: Bell },
         { id: 'notify_templates', label: 'Notify Templates', icon: Mail },
@@ -19276,6 +19279,10 @@ Thank you for choosing TaxiApp!`);
 
             {activeTab === 'pwa' && (
               <PwaAdminView setToast={setToast} />
+            )}
+
+            {activeTab === 'capacitor' && (
+              <CapacitorAdminView setToast={setToast} />
             )}
 
             {activeTab === 'events' && (

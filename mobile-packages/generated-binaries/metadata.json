@@ -1,0 +1,46 @@
+{
+  "appId": "com.taxiapp.users",
+  "appName": "TaxiApp",
+  "version": "2.5.0",
+  "versionCode": 25,
+  "minSdkVersion": 21,
+  "targetSdkVersion": 34,
+  "binaries": [
+    {
+      "id": "release-apk",
+      "fileName": "taxiapp-v2.5.0-release.apk",
+      "type": "Signed Release APK (v1+v2+v3)",
+      "format": ".apk",
+      "sizeBytes": 21297,
+      "sizeMb": "0.02",
+      "sha256": "f4f60e72dbd74aaf7d0a84092abc4c90ae4229e3dbc2676b3721b22a77654db7",
+      "channel": "handset-sideload",
+      "description": "Valid signed release APK with native TaxiApp splash and verified parsing.",
+      "downloadUrl": "/api/capacitor/download/release-apk"
+    },
+    {
+      "id": "debug-apk",
+      "fileName": "taxiapp-v2.5.0-debug.apk",
+      "type": "Debug APK",
+      "format": ".apk",
+      "sizeBytes": 21297,
+      "sizeMb": "0.02",
+      "sha256": "f4f60e72dbd74aaf7d0a84092abc4c90ae4229e3dbc2676b3721b22a77654db7",
+      "channel": "qa-testing",
+      "description": "Debug APK for internal developer and QA testing.",
+      "downloadUrl": "/api/capacitor/download/debug-apk"
+    },
+    {
+      "id": "release-aab",
+      "fileName": "taxiapp-v2.5.0-release.aab",
+      "type": "Play Store App Bundle",
+      "format": ".aab",
+      "sizeBytes": 21297,
+      "sizeMb": "0.02",
+      "sha256": "f4f60e72dbd74aaf7d0a84092abc4c90ae4229e3dbc2676b3721b22a77654db7",
+      "channel": "google-play-store",
+      "description": "Android App Bundle package for Google Play Store upload.",
+      "downloadUrl": "/api/capacitor/download/release-aab"
+    }
+  ]
+}

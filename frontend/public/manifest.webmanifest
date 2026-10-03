@@ -1,36 +1,38 @@
 {
+  "id": "/?installed=true",
   "short_name": "TaxiApp",
   "name": "TaxiApp - Instant Cab Booking & Fleet Operations",
+  "description": "Book instant cabs, daily rides, airport transfers, and manage driver fleets with live GPS tracking.",
+  "start_url": "/?installed=true&source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF7F2",
+  "theme_color": "#F59E0B",
   "icons": [
     {
       "src": "/pwa_icon_192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/pwa_icon_512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa_icon_512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     },
     {
       "src": "/apple-touch-icon.png",
       "type": "image/png",
       "sizes": "180x180",
       "purpose": "any"
-    },
-    {
-      "src": "/uploads/autoprofile.svg",
-      "type": "image/svg+xml",
-      "sizes": "256x256 512x512",
-      "purpose": "any"
     }
-  ],
-  "start_url": "/",
-  "background_color": "#F8FAFC",
-  "theme_color": "#F59E0B",
-  "display": "standalone",
-  "orientation": "portrait",
-  "description": "Book instant cabs, daily rides, airport transfers, and manage driver fleets."
+  ]
 }

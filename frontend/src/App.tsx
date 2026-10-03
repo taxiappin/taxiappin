@@ -150,6 +150,7 @@ const SubscriptionPage = lazy(() => import("./components/SubscriptionPage"));
 import { OnboardingModal } from "./components/OnboardingModal";
 import { InviteFriendModal } from "./components/InviteFriendModal";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import { OfflineIndicator } from "./components/OfflineIndicator";
 import { PopupNotificationModal, PopupNotificationData } from "./components/PopupNotificationModal";
 import { PWAUpdateToast } from "./components/PWAUpdateToast";
 import { initPwaTelemetry } from "./services/pwaTelemetry";
@@ -11591,6 +11592,19 @@ export default function App() {
       if (searchParams.get("track") || searchParams.get("trackTripId") || window.location.pathname.startsWith("/track/")) {
         return false;
       }
+      // If opened in mobile phone after being installed (APK, standalone PWA, or previous install), avoid install landing screen
+      const isInstalled = typeof window !== 'undefined' && (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true ||
+        window.navigator.userAgent.toLowerCase().includes('taxiappnative') ||
+        searchParams.get("installed") === "true" ||
+        searchParams.get("source") === "mobile_app" ||
+        searchParams.get("source") === "pwa" ||
+        localStorage.getItem("taxiapp_installed") === "true"
+      );
+      if (isInstalled) {
+        return false;
+      }
       return config?.landingPage?.enabled !== false && window.location.pathname !== "/backend";
     }
   );
@@ -15419,7 +15433,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.error("Failed to load chat settings:", err);
+      // Graceful fallback to default chat configuration
     }
   };
 
@@ -41642,6 +41656,9 @@ export default function App() {
 
         {/* Live PWA Installation Guide Modal */}
         <PWAInstallPrompt />
+
+        {/* Offline Status & Connectivity Reconnection Indicator */}
+        <OfflineIndicator />
 
         {/* Real-time Centered Popup Notification Modal */}
         <PopupNotificationModal 

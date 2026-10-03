@@ -1,6 +1,6 @@
 {
-  "name": "taxiapp_production_import v4 capacitor",
-  "description": "Imported from GitHub: taxiappin/taxiappin",
+  "name": "TaxiApp - Instant Cab Booking, Ride Hailing & Fleet Operations",
+  "description": "Book instant rides, daily cabs, airport transfers, and outstation trips with verified drivers, transparent fares, live GPS tracking, and secure digital payments.",
   "requestFramePermissions": [
     "geolocation",
     "notifications"

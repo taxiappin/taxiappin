@@ -77,41 +77,86 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ delay = 2500
       setTargetOS(isAndroidDevice ? 'android' : 'ios');
     }
 
-    // Check standalone mode
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-    if (isStandalone) {
-      setIsInstalled(true);
-      return;
-    }
+    // Check if app is installed on this device
+    const checkDeviceInstallation = async () => {
+      // 1. Running inside native Android APK
+      const isNative = userAgent.includes('taxiappnative') || 
+        (window as any).isNativeApp === true || 
+        window.location.search.includes('source=mobile_app') || 
+        window.location.search.includes('installed=true');
+
+      // 2. Running inside installed standalone PWA
+      const isPWAStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+        (window.navigator as any).standalone === true || 
+        window.location.search.includes('source=pwa');
+
+      if (isNative || isPWAStandalone) {
+        setIsInstalled(true);
+        setIsVisible(false);
+        return;
+      }
+
+      // 3. Query Android Chrome getInstalledRelatedApps API if supported
+      try {
+        if (typeof navigator !== 'undefined' && 'getInstalledRelatedApps' in navigator) {
+          const related = await (navigator as any).getInstalledRelatedApps();
+          if (related && related.length > 0) {
+            setIsInstalled(true);
+            setIsVisible(false);
+            return;
+          }
+        }
+      } catch (err) {}
+
+      // App is NOT installed on this device!
+      setIsInstalled(false);
+
+      // Auto-show install popup window if not dismissed this session
+      const dismissedThisSession = sessionStorage.getItem('pwa_prompt_dismissed_v4');
+      if (dismissedThisSession !== 'true' && pwaPrompt.autoPushToUninstalled) {
+        setTimeout(() => setIsVisible(true), 1200);
+      }
+    };
+
+    checkDeviceInstallation();
 
     // Google Chrome / Android install prompt handler
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      const dismissed = sessionStorage.getItem('pwa_prompt_dismissed_v3');
-      if (dismissed !== 'true' && pwaPrompt.autoPushToUninstalled) {
-        setTimeout(() => setIsVisible(true), delay);
+      // If not running as installed app, show install window
+      setIsInstalled(false);
+      const dismissed = sessionStorage.getItem('pwa_prompt_dismissed_v4');
+      if (dismissed !== 'true') {
+        setTimeout(() => setIsVisible(true), 1000);
       }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Auto show if not dismissed
-    const dismissed = sessionStorage.getItem('pwa_prompt_dismissed_v3');
-    if (dismissed !== 'true' && pwaPrompt.autoPushToUninstalled && !isStandalone) {
-      setTimeout(() => setIsVisible(true), delay);
-    }
+    // Listen for OS native appinstalled event
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setIsVisible(false);
+      try {
+        localStorage.setItem('taxiapp_installed', 'true');
+      } catch (err) {}
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Listen for live backend push event
+    // Listen for live backend push event or in-app button triggers
     const handlePushEvent = () => {
       setIsVisible(true);
-      sessionStorage.removeItem('pwa_prompt_dismissed_v3');
+      sessionStorage.removeItem('pwa_prompt_dismissed_v4');
     };
     window.addEventListener('push_pwa_install_prompt_event', handlePushEvent);
+    window.addEventListener('show-pwa-install', handlePushEvent);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('push_pwa_install_prompt_event', handlePushEvent);
+      window.removeEventListener('show-pwa-install', handlePushEvent);
     };
   }, [delay, pwaPrompt.enabled, pwaPrompt.autoPushToUninstalled, pwaPrompt.forceDeviceView]);
 
@@ -121,6 +166,7 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ delay = 2500
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setIsVisible(false);
+        setIsInstalled(true);
       }
       setDeferredPrompt(null);
     } else {
@@ -130,7 +176,7 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ delay = 2500
 
   const closePrompt = () => {
     setIsVisible(false);
-    sessionStorage.setItem('pwa_prompt_dismissed_v3', 'true');
+    sessionStorage.setItem('pwa_prompt_dismissed_v4', 'true');
   };
 
   if (!pwaPrompt.enabled || isInstalled) {
@@ -179,9 +225,10 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ delay = 2500
   const activeStep = currentSteps.find(s => s.step === activeStepTab) || currentSteps[0];
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <div className="absolute inset-0 z-[11000] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 select-none overflow-y-auto rounded-[inherit]">
+    <>
+      <AnimatePresence>
+        {isVisible && (
+          <div className="fixed inset-0 z-[11000] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 select-none overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -216,15 +263,33 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ delay = 2500
               </p>
             </div>
 
-            {/* Android Direct Install Action (if available / Android mode) */}
+            {/* Android Direct Install Action */}
             {targetOS === 'android' && (
-              <button
-                onClick={handleInstallClick}
-                className="w-full mb-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-2 px-3 rounded-2xl shadow-sm border border-amber-500/80 flex items-center justify-center gap-2 text-xs uppercase tracking-wider cursor-pointer active:scale-98 transition-all"
-              >
-                <Download size={14} />
-                <span>INSTALL APP DIRECTLY</span>
-              </button>
+              <div className="flex items-center gap-2 mb-2.5">
+                <a
+                  href="/api/capacitor/download/release-apk"
+                  download="taxiapp-v2.5.0-release.apk"
+                  onClick={() => {
+                    try {
+                      localStorage.setItem('taxiapp_installed', 'true');
+                      localStorage.setItem('pwa_prompt_dismissed_v3', 'true');
+                    } catch (e) {}
+                    setIsInstalled(true);
+                    setIsVisible(false);
+                  }}
+                  className="flex-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-2 px-3 rounded-2xl shadow-sm border border-amber-500/80 flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider cursor-pointer active:scale-98 transition-all"
+                >
+                  <Download size={14} />
+                  <span>Install App</span>
+                </a>
+                <button
+                  onClick={handleInstallClick}
+                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-black py-2 px-3 rounded-2xl shadow-sm flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider cursor-pointer active:scale-98 transition-all"
+                >
+                  <Smartphone size={14} />
+                  <span>Install Web App</span>
+                </button>
+              </div>
             )}
 
             {/* Step Tabs Navigation - Equal width & clean alignment */}
@@ -303,6 +368,21 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ delay = 2500
         </div>
       )}
     </AnimatePresence>
-  );
+
+    {/* Floating launcher button when app is not installed on this device and modal is closed */}
+    {!isInstalled && !isVisible && (
+      <div className="fixed bottom-24 right-4 z-[9990] sm:bottom-6 sm:right-6 animate-in fade-in duration-200">
+        <button
+          onClick={() => setIsVisible(true)}
+          className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-3.5 py-2 rounded-2xl shadow-xl border-2 border-amber-500/80 flex items-center gap-2 text-xs uppercase tracking-wider cursor-pointer active:scale-95 transition-all shadow-amber-500/30"
+          title="Install TaxiApp on this device"
+        >
+          <Download size={14} className="stroke-[2.5]" />
+          <span>Install App</span>
+        </button>
+      </div>
+    )}
+  </>
+);
 };
 
